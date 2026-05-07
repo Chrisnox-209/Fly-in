@@ -1,3 +1,4 @@
+*.tar.gz
 *.pdf
 **/*.pdf
 __pycache__/
