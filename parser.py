@@ -1,40 +1,7 @@
 import sys
+from structure import Drone, Start, End, Hub, Connection
 from pydantic import BaseModel, Field, ValidationError, model_validator
-from typing import Any, Annotated, Self
-
-
-class Node(BaseModel):
-    name: Annotated[str, Field(min_length=1, strip_whitespace=True)]
-    x: int = Field(...)
-    y: int = Field(...)
-    nb_line: int = Field(..., ge=1)
-    color: str | None = None
-    max_drones:  int | None = None
-    zone: str = Field(default="normal")
-
-
-class Hub(Node):
-    pass
-
-
-class Start(Node):
-    pass
-
-
-class End(Node):
-    pass
-
-
-class Drone(BaseModel):
-    nb_drone: int = Field(..., ge=1)
-    nb_line: int = Field(..., ge=1)
-
-
-class Connection(BaseModel):
-    connection_a: Annotated[str, Field(min_length=1, strip_whitespace=True)]
-    connection_b: Annotated[str, Field(min_length=1, strip_whitespace=True)]
-    nb_line: int = Field(..., ge=1)
-    max_link_capacity: int = Field(default=1)
+from typing import Any, Self
 
 
 class Global(BaseModel):
@@ -117,6 +84,33 @@ class Global(BaseModel):
                                  f"{c.nb_line}")
         return self
 
+    @model_validator(mode="after")
+    def check_color(self) -> Self:
+        list_colors: list[str] = ["yellow", "grey", "red",
+                                  "blue", "green", "pink", "cyan"]
+
+        for hub in self.glb_hub:
+            if hub.color not in list_colors and hub.color is not None:
+                raise ValueError("[HUB]\033[1;37m The color for the "
+                                 "hub is not valid \033[1;35m line → "
+                                 f"{hub.nb_line}\n\n"
+                                 "\033[1;37m[Valid color list]: "
+                                 f"\033[1;32m{list_colors}")
+        return self
+
+    @model_validator(mode="after")
+    def check_zone(self) -> Self:
+        list_zone: list[str] = ["normal", "blocked", "restricted", "priority"]
+
+        for hub in self.glb_hub:
+            if hub.zone not in list_zone:
+                raise ValueError("[HUB]\033[1;37m The zone for the "
+                                 "hub is not valid \033[1;35m line → "
+                                 f"{hub.nb_line}\n\n"
+                                 "\033[1;37m[Valid zone list]: "
+                                 f"\033[1;32m{list_zone}")
+        return self
+
 
 def create_hub(type_obj: Any, string: str, line: int) -> Any:
     key: str
@@ -163,6 +157,10 @@ def create_hub(type_obj: Any, string: str, line: int) -> Any:
                     hub.max_drones = int(value)
                 except ValueError:
                     raise ValueError("[HUB]\033[1;37m Invalid max_drones "
+                                     f"\033[1;35mline → {line}")
+                if hub.max_drones < 1:
+                    raise ValueError("[HUB]\033[1;37m Invalid max_drones "
+                                     "must be greater than 0 "
                                      f"\033[1;35mline → {line}")
             else:
                 raise ValueError("[HUB]\033[1;37m InvalidOption "
@@ -215,6 +213,10 @@ def create_connection(string: str, line: int) -> Connection:
             else:
                 raise ValueError("[CONNECTION]\033[1;37m InvalidOption "
                                  f"\033[1;35mline → {line}")
+            if connection.max_link_capacity < 1:
+                raise ValueError("[HUB]\033[1;37m max_link_capacity "
+                                 "must be greater than 0 "
+                                 f"\033[1;35mline → {line}")
     else:
         if len(string.split()) != 1 or string.count("-") != 1:
             raise ValueError("[CONNECTION]\033[1;37m InvalidOption "
@@ -226,12 +228,12 @@ def create_connection(string: str, line: int) -> Connection:
     return connection
 
 
-def parse(file_name: str) -> None:
+def parse(file_name: str) -> Global:
     hub_list: list[Hub] = []
     connection_list: list[Connection] = []
-    hub_start: Start = None
-    hub_end: End = None
-    drone: Drone = None
+    hub_start: Start | None = None
+    hub_end: End | None = None
+    drone: Drone | None = None
     start_flag: int = 0
     end_flag: int = 0
 
