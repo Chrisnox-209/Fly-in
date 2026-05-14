@@ -1,6 +1,6 @@
 import sys
-from pydantic import BaseModel, Field
-from typing import Any, Optional, Annotated
+from pydantic import BaseModel, Field, ValidationError, model_validator
+from typing import Any, Annotated, Self
 
 
 class Node(BaseModel):
@@ -10,6 +10,7 @@ class Node(BaseModel):
     nb_line: int = Field(..., ge=1)
     color: str | None = None
     max_drones:  int | None = None
+    zone: str = Field(default="normal")
 
 
 class Hub(Node):
@@ -33,40 +34,161 @@ class Connection(BaseModel):
     connection_a: Annotated[str, Field(min_length=1, strip_whitespace=True)]
     connection_b: Annotated[str, Field(min_length=1, strip_whitespace=True)]
     nb_line: int = Field(..., ge=1)
-    max_link_capacity: int | None = None
+    max_link_capacity: int = Field(default=1)
 
 
-def create_hub(string: str, line: int) -> Hub:
-    value: str
+class Global(BaseModel):
+    glb_drones: Drone = Field(...)
+    glb_start: Start = Field(...)
+    glb_end: End = Field(...)
+    glb_hub: list[Hub] = Field(...)
+    glb_connection: list[Connection] = Field(...)
+
+    @model_validator(mode="after")
+    def check_connection_ab(self) -> Self:
+        valid_names: list[str] = [hub.name for hub in self.glb_hub]
+        valid_names.append(self.glb_start.name)
+        valid_names.append(self.glb_end.name)
+
+        for connection in self.glb_connection:
+            if connection.connection_a not in valid_names:
+                raise ValueError(f"[CONNECTION]\033[1;37m connector "
+                                 f"\033[38;5;215m{connection.connection_a}"
+                                 "\033[1;37m name "
+                                 "does not match a hub \033[1;35mline → "
+                                 f"{connection.nb_line}")
+        for connection in self.glb_connection:
+            if connection.connection_b not in valid_names:
+                raise ValueError(f"[CONNECTION]\033[1;37m connector "
+                                 f"\033[38;5;215m{connection.connection_b}"
+                                 "\033[1;37m name "
+                                 "does not match a hub \033[1;35mline → "
+                                 f"{connection.nb_line}")
+        return self
+
+    @model_validator(mode="after")
+    def check_duplicate_name(self) -> Self:
+        all_names: list[str] = [hub.name for hub in self.glb_hub]
+        all_names.append(self.glb_start.name)
+        all_names.append(self.glb_end.name)
+
+        for hub in self.glb_hub:
+            if all_names.count(hub.name) >= 2:
+                raise ValueError(f"[HUB]\033[1;37m the hub name "
+                                 f"(\033[38;5;215m{hub.name}\033[1;37m) is "
+                                 "already in use\033[1;35m line → "
+                                 f"{hub.nb_line}")
+        return self
+
+    @model_validator(mode="after")
+    def postion_drone(self) -> Self:
+        pos_drone: int = self.glb_drones.nb_line
+        all_pos: list[int] = [hub.nb_line for hub in self.glb_hub]
+        all_pos_connection: list[int] = [connect.nb_line for connect
+                                         in self.glb_connection]
+        all_pos.extend(all_pos_connection)
+        all_pos.append(self.glb_end.nb_line)
+        all_pos.append(self.glb_start.nb_line)
+
+        for nb in all_pos:
+            if nb <= pos_drone:
+                raise ValueError("[DRONE]\033[1;37m The drone parameter "
+                                 "is not in the first position")
+        return self
+
+    @model_validator(mode="after")
+    def check_double_path(self) -> Self:
+        list_connector: list[tuple[str, str]] = [
+            (con.connection_a, con.connection_b)
+            for con in self.glb_connection]
+
+        reverse_connector: list[tuple[str, str]] = [
+            (con.connection_b, con.connection_a)
+            for con in self.glb_connection]
+
+        list_connector.extend(reverse_connector)
+
+        for c in self.glb_connection:
+            path_tuple: tuple[str, str] = c.connection_a, c.connection_b
+            if list_connector.count(path_tuple) > 1:
+                raise ValueError(f"[CONNECTION]\033[1;37m The path for "
+                                 f"this connector \033[38;5;215m{path_tuple}"
+                                 "\033[1;37m already exists\033[1;35m line → "
+                                 f"{c.nb_line}")
+        return self
+
+
+def create_hub(type_obj: Any, string: str, line: int) -> Any:
     key: str
+    value: str
     if "[" in string and "]" in string:
         data: str = string[:string.index("[")].strip()
         data_list: list[str] = data.strip().split()
+
         if len(data_list) != 3:
-            raise ValueError(f"[HUB]InvalidArguments (line={line})")
-        else:
-            hub = Hub(name=data_list[0],
-                      x=int(data_list[1]),
-                      y=int(data_list[2]),
-                      nb_line=line)
+            raise ValueError("[HUB]\033[1;37m Invalid arguments "
+                             f"\033[1;35mline → {line}")
+
+        try:
+            x = int(data_list[1])
+            y = int(data_list[2])
+        except ValueError:
+            raise ValueError("[HUB]\033[1;37m Invalid number format "
+                             f"\033[1;35mline → {line}")
+
+        if "-" in data_list[0]:
+            raise ValueError("[HUB]\033[1;37m The character '-' is "
+                             "not allowed in the name"
+                             f"\033[1;35m line → {line}")
+        hub: Any = type_obj(
+            name=data_list[0],
+            x=x,
+            y=y,
+            nb_line=line
+        )
+
         option: str = string[string.index("[") + 1: string.index("]")].strip()
+        if len(option.split()) < 1 and len(option.split()) > 3:
+            raise ValueError("[HUB] Invalid format option "
+                             f"\033[1;35mline → {line}")
         for item in option.split():
             key, value = item.split("=", 1)
+
             if key == "color":
                 hub.color = value
+            elif key == "zone":
+                hub.zone = value
             elif key == "max_drones":
-                hub.max_drones = int(value)
+                try:
+                    hub.max_drones = int(value)
+                except ValueError:
+                    raise ValueError("[HUB]\033[1;37m Invalid max_drones "
+                                     f"\033[1;35mline → {line}")
             else:
-                raise ValueError(f"[HUB]InvalidOption (line={line})")
+                raise ValueError("[HUB]\033[1;37m InvalidOption "
+                                 f"\033[1;35mline → {line}")
+
     else:
         data_list = string.strip().split()
-        if len(data_list) > 3 or len(data_list) < 3:
-            raise ValueError(f"[HUB]InvalidArguments (line={line})")
-        else:
-            hub = Hub(name=data_list[0],
-                      x=int(data_list[1]),
-                      y=int(data_list[2]),
-                      nb_line=line)
+
+        if len(data_list) != 3:
+            raise ValueError("[HUB]\033[1;37m Invalid arguments "
+                             f"\033[1;35mline → {line}")
+
+        try:
+            x = int(data_list[1])
+            y = int(data_list[2])
+        except ValueError:
+            raise ValueError("[HUB]\033[1;37m Invalid number format "
+                             f"\033[1;35mline → {line}")
+
+        hub = type_obj(
+            name=data_list[0],
+            x=x,
+            y=y,
+            nb_line=line
+        )
+
     return hub
 
 
@@ -79,7 +201,8 @@ def create_connection(string: str, line: int) -> Connection:
         data: str = string[:string.index("[")].strip()
         data_list: list[str] = data.strip().split()
         if len(data_list) != 1 or data_list[0].count("-") != 1:
-            raise ValueError(f"[CONNECTION]InvalidArguments cd(line={line})")
+            raise ValueError("[CONNECTION]\033[1;37m Invalid arguments "
+                             f"\033[1;35mline → {line}")
         a, b = data_list[0].split("-", 1)
         connection = Connection(connection_a=a,
                                 connection_b=b,
@@ -90,10 +213,12 @@ def create_connection(string: str, line: int) -> Connection:
             if key == "max_link_capacity":
                 connection.max_link_capacity = int(value)
             else:
-                raise ValueError(f"[CONNECTION]InvalidOption (line={line})")
+                raise ValueError("[CONNECTION]\033[1;37m InvalidOption "
+                                 f"\033[1;35mline → {line}")
     else:
         if len(string.split()) != 1 or string.count("-") != 1:
-            raise ValueError(f"[CONNECTION]InvalidArguments (line={line})")
+            raise ValueError("[CONNECTION]\033[1;37m InvalidOption "
+                             f"\033[1;35mline → {line}")
         a, b = string.split("-", 1)
         connection = Connection(connection_a=a,
                                 connection_b=b,
@@ -101,9 +226,15 @@ def create_connection(string: str, line: int) -> Connection:
     return connection
 
 
-def parse(file_name: str) -> Any:
-    hub_list: list[Any] = []
-    connection_list: list[Any] = []
+def parse(file_name: str) -> None:
+    hub_list: list[Hub] = []
+    connection_list: list[Connection] = []
+    hub_start: Start = None
+    hub_end: End = None
+    drone: Drone = None
+    start_flag: int = 0
+    end_flag: int = 0
+
     try:
         data: Any
         with open(file_name, 'r', encoding='utf8') as file:
@@ -111,16 +242,35 @@ def parse(file_name: str) -> Any:
                 index: str = line.split(":", 1)[0].strip()
                 if index == "nb_drones":
                     data = line.split(":", 1)[1].strip()
-                    drone = Drone(nb_drone=data, nb_line=(i + 1))
+                    try:
+                        nb_drone = int(data)
+                    except ValueError:
+                        raise ValueError("[DRONE]\033[1;37m invalid int "
+                                         f"'{data}' \033[1;35mline → {i + 1}")
+                    if nb_drone < 1:
+                        raise ValueError("[DRONE]\033[1;37m nb_drone "
+                                         "must be >= 1 "
+                                         f"\033[1;35mline → {i + 1}")
+                    drone = Drone(nb_drone=nb_drone, nb_line=i+1)
                 elif index == "start_hub":
+                    start_flag += 1
+                    if start_flag > 1:
+                        raise ValueError("[START_HUB]\033[1;37m the parameter "
+                                         "is duplicated "
+                                         f"\033[1;35mline → {i + 1}")
                     data = line.split(":", 1)[1].strip()
-                    hub_start: Hub = create_hub(data, (i + 1))
+                    hub_start = create_hub(Start, data, (i + 1))
                 elif index == "end_hub":
+                    end_flag += 1
+                    if end_flag > 1:
+                        raise ValueError("[END_HUB]\033[1;37m the parameter "
+                                         "is duplicated "
+                                         f"\033[1;35mline → {i + 1}")
                     data = line.split(":", 1)[1].strip()
-                    hub_end: Hub = create_hub(data, (i + 1))
+                    hub_end = create_hub(End, data, (i + 1))
                 elif index == "hub":
                     data = line.split(":", 1)[1].strip()
-                    hub: Hub = create_hub(data, (i + 1))
+                    hub: Hub = create_hub(Hub, data, (i + 1))
                     hub_list.append(hub)
                 elif index == "connection":
                     data = line.split(":", 1)[1].strip()
@@ -128,7 +278,34 @@ def parse(file_name: str) -> Any:
                     connection_list.append(connection)
                 else:
                     continue
+
+            if hub_start is None:
+                raise ValueError("[MAP]\033[1;37m start_hub is not present"
+                                 " in the map")
+            if hub_end is None:
+                raise ValueError("[MAP]\033[1;37m start_end is not present"
+                                 " in the map")
+            if drone is None:
+                raise ValueError("[MAP]\033[1;37m nb_drones is not present"
+                                 " in the map")
+            if connection_list == []:
+                raise ValueError("[MAP]\033[1;37m connection is not "
+                                 "present in the map")
+
     except (FileNotFoundError, PermissionError, ValueError) as error:
-        print(f"Error: {error}")
+        print(f"\033[1;31m[ERROR]: "
+              f"\033[1;35m({type(error).__name__}) "
+              f"\033[1;33m{error}")
         sys.exit(1)
-    return drone, hub_start, hub_end, hub_list, connection_list
+
+    try:
+        map = Global(glb_drones=drone,
+                     glb_start=hub_start,
+                     glb_end=hub_end,
+                     glb_hub=hub_list,
+                     glb_connection=connection_list)
+    except ValidationError as error:
+        print(f"\033[1;31m[ERROR]: \033[1;35m({error.errors()[0]['type']}) "
+              f"\033[1;33m{error.errors()[0]['ctx']['error'].args[0]}")
+        sys.exit(1)
+    return map
