@@ -1,96 +1,46 @@
-Chapitre II
-Instructions de l'IA
-
-● Contexte
-Au cours de votre parcours d'apprentissage, l'IA peut vous aider dans de nombreuses tâches différentes. Prenez le temps d'explorer les différentes capacités des outils d'IA et comment ils peuvent soutenir votre travail. Cependant, abordez-les toujours avec prudence et évaluez les résultats de manière critique. Qu'il s'agisse de code, de documentation, d'idées ou d'explications techniques, vous ne pouvez jamais être complètement sûr que votre question a été bien formulée ou que le contenu généré est exact. Vos pairs sont une ressource précieuse pour vous aider à éviter les erreurs et les angles morts.
-
-● Message principal
-☛ Utilisez l'IA pour réduire les tâches répétitives ou fastidieuses.
-☛ Développez des compétences en création de requêtes (prompting) — tant pour le code que hors code — qui profiteront à votre future carrière.
-☛ Apprenez comment fonctionnent les systèmes d'IA pour mieux anticiper et éviter les risques communs, les biais et les problèmes éthiques.
-☛ Continuez à développer à la fois des compétences techniques et des compétences transversales (power skills) en travaillant avec vos pairs.
-☛ N'utilisez que du contenu généré par l'IA que vous comprenez parfaitement et dont vous pouvez assumer la responsabilité.
-
-● Règles de l'apprenant :
-• Vous devez prendre le temps d'explorer les outils d'IA et de comprendre leur fonctionnement, afin de pouvoir les utiliser de manière éthique et de réduire les biais potentiels.
-• Vous devez réfléchir à votre problème avant de formuler une requête — cela vous aide à rédiger des requêtes plus claires, plus détaillées et plus pertinentes en utilisant un vocabulaire précis.
-• Vous devez prendre l'habitude de vérifier, revoir, remettre en question et tester systématiquement tout ce qui est généré par l'IA.
-• Vous devez toujours rechercher l'évaluation par les pairs — ne comptez pas uniquement sur votre propre validation.
-
-● Résultats de la phase :
-• Développer des compétences en création de requêtes d'ordre général et spécifiques à un domaine.
-• Augmenter votre productivité grâce à une utilisation efficace des outils d'IA.
-• Continuer à renforcer la pensée computationnelle, la résolution de problèmes, l'adaptabilité et la collaboration.
-
-● Commentaires et exemples :
-• Vous rencontrerez régulièrement des situations — examens, évaluations, etc. — où vous devrez démontrer une réelle compréhension. Soyez préparé, continuez à développer vos compétences techniques et interpersonnelles.
-• Expliquer votre raisonnement et débattre avec vos pairs révèle souvent des lacunes dans votre compréhension. Faites de l'apprentissage par les pairs une priorité.
-• Les outils d'IA manquent souvent de votre contexte spécifique et ont tendance à fournir des réponses génériques. Vos pairs, qui partagent votre environnement, peuvent offrir des perspectives plus pertinentes et plus précises.
-• Là où l'IA a tendance à générer la réponse la plus probable, vos pairs peuvent apporter des perspectives alternatives et des nuances précieuses. Fiez-vous à eux comme point de contrôle de la qualité.
-
-✓ Bonne pratique :
-Je demande à l'IA : "Comment tester une fonction de tri ?" Elle me donne quelques idées. Je les essaie et j'examine les résultats avec un pair. Nous affinons l'approche ensemble.
-
-✗ Mauvaise pratique :
-Je demande à l'IA d'écrire une fonction entière, je la copie-colle dans mon projet. Lors de l'évaluation par les pairs, je ne peux pas expliquer ce qu'elle fait ni pourquoi. Je perds en crédibilité — et j'échoue à mon projet.
-
-✓ Bonne pratique :
-J'utilise l'IA pour m'aider à concevoir un parseur. Ensuite, je parcours la logique avec un pair. Nous repérons deux bugs et la réécrivons ensemble — en mieux, plus propre, et parfaitement comprise.
-
-✗ Mauvaise pratique :
-Je laisse Copilot générer mon code pour une partie clé de mon projet. Il compile, mais je ne peux pas expliquer comment il gère les pipes. Pendant l'évaluation, je ne parviens pas à me justifier et j'échoue à mon projet.
-
 Chapitre III
 Instructions Communes
-
-III.1 Règles Générales
-• Votre projet doit être écrit en Python 3.10 ou ultérieur.
-• Votre projet doit adhérer à la norme de codage flake8.
-• Vos fonctions doivent gérer les exceptions de manière élégante pour éviter les plantages. Utilisez des blocs try-except pour gérer les erreurs potentielles. Préférez les gestionnaires de contexte (context managers) pour les ressources comme les fichiers ou les connexions afin d'assurer un nettoyage automatique. Si votre programme plante en raison d'exceptions non gérées pendant l'évaluation, il sera considéré comme non fonctionnel.
-• Toutes les ressources (par ex., descripteurs de fichiers, connexions réseau) doivent être correctement gérées pour éviter les fuites. Utilisez des gestionnaires de contexte lorsque cela est possible pour une gestion automatique.
-• Votre code doit inclure des indications de type (type hints) pour les paramètres de fonction, les types de retour et les variables le cas échéant (en utilisant le module typing). Utilisez mypy pour la vérification statique des types. Toutes les fonctions doivent passer mypy sans erreurs.
+III.1
+Règles Générales
+• Votre projet doit être écrit en Python 3.10 ou version ultérieure.
+• Votre projet doit respecter la norme de codage flake8.
+• Vos fonctions doivent gérer les exceptions de manière appropriée pour éviter les plantages. Utilisez des blocs try-except pour gérer les erreurs potentielles. Privilégiez les gestionnaires de contexte pour les ressources telles que les fichiers ou les connexions afin de garantir un nettoyage automatique. Si votre programme plante en raison d'exceptions non gérées lors de l'évaluation, il sera considéré comme non fonctionnel.
+• Toutes les ressources (par ex., les descripteurs de fichiers, les connexions réseau) doivent être correctement gérées pour éviter les fuites. Utilisez les gestionnaires de contexte dans la mesure du possible pour une gestion automatique.
+• Votre code doit inclure des annotations de type pour les paramètres de fonction, les types de retour et les variables le cas échéant (en utilisant le module typing). Utilisez mypy pour la vérification de type statique. Toutes les fonctions doivent passer mypy sans erreurs.
 • Incluez des docstrings dans les fonctions et les classes en suivant la PEP 257 (par ex., style Google ou NumPy) pour documenter l'objectif, les paramètres et les retours.
-
-III.2 Makefile
-Incluez un Makefile dans votre projet pour automatiser les tâches courantes. Il doit contenir les règles suivantes (le lint obligatoire implique les drapeaux spécifiés ; il est fortement recommandé d'essayer --strict pour une vérification améliorée) :
-• install : Installer les dépendances du projet en utilisant pip, uv, pipx ou tout autre gestionnaire de paquets de votre choix.
+III.2
+Makefile
+Incluez un Makefile dans votre projet pour automatiser les tâches courantes. Il doit contenir les règles suivantes (lint obligatoire implique les options spécifiées ; il est fortement recommandé d'essayer --strict pour une vérification améliorée) :
+• install : Installer les dépendances du projet en utilisant pip, uv, pipx, ou tout autre gestionnaire de paquets de votre choix.
 • run : Exécuter le script principal de votre projet (par ex., via l'interpréteur Python).
 • debug : Exécuter le script principal en mode débogage en utilisant le débogueur intégré de Python (par ex., pdb).
 • clean : Supprimer les fichiers temporaires ou les caches (par ex., __pycache__, .mypy_cache) pour garder l'environnement du projet propre.
 • lint : Exécuter les commandes flake8 . et mypy . --warn-return-any --warn-unused-ignores --ignore-missing-imports --disallow-untyped-defs --check-untyped-defs
 • lint-strict (optionnel) : Exécuter les commandes flake8 . et mypy . --strict
-
-III.3 Directives Supplémentaires
-• Créez des programmes de test pour vérifier la fonctionnalité du projet (non soumis ni notés). Utilisez des frameworks comme pytest ou unittest pour les tests unitaires, couvrant les cas limites.
+III.3
+Lignes Directrices Supplémentaires
+• Créez des programmes de test pour vérifier la fonctionnalité du projet (non soumis ni notés). Utilisez des frameworks comme pytest ou unittest pour les tests unitaires, en couvrant les cas limites.
 • Incluez un fichier .gitignore pour exclure les artefacts Python.
 • Il est recommandé d'utiliser des environnements virtuels (par ex., venv ou conda) pour l'isolation des dépendances pendant le développement.
-
 Si des exigences supplémentaires spécifiques au projet s'appliquent, elles seront indiquées immédiatement sous cette section.
 
 Chapitre IV
 Introduction
-
-Les drones autonomes sont l'avenir du transport. Ils sont déjà utilisés dans de nombreuses industries, telles que l'agriculture, la construction et la logistique. Ils sont également utilisés dans les opérations militaires, comme la surveillance et la reconnaissance.
-
-Votre tâche consiste à concevoir un système qui achemine efficacement une flotte de drones d'une base centrale (départ) à un emplacement cible (fin), tout en naviguant sur ce réseau dynamique sous un ensemble de contraintes strictes et d'objectifs d'optimisation.
-
-Vous recevrez un graphe représentant le réseau de zones, et un ensemble de contraintes que vous devrez respecter.
-
+Les drones autonomes sont l'avenir du transport. Ils sont déjà utilisés dans de nombreuses industries, telles que l'agriculture, la construction et la logistique. Ils sont également utilisés dans les opérations militaires, telles que la surveillance et la reconnaissance.
+Votre tâche consiste à concevoir un système qui achemine efficacement une flotte de drones depuis une base centrale (départ) vers un emplacement cible (fin), tout en naviguant dans ce réseau dynamique sous un ensemble de contraintes strictes et d'objectifs d'optimisation.
+On vous donnera un graphe représentant le réseau de zones, et un ensemble de contraintes que vous devez respecter.
 Le graphe est représenté comme un réseau de zones connectées, où les connexions définissent les chemins de mouvement possibles entre les zones.
 
 Chapitre V
 Contraintes
-
-• Toute bibliothèque facilitant la logique des graphes est interdite (comme networkx, graphlib, etc.).
-• Le projet doit être entièrement sûr du point de vue du typage (typesafe). L'utilisation de flake8 et mypy est obligatoire.
-• Le projet doit être entièrement orienté objet.
+• Toute bibliothèque qui aide avec la logique des graphes est interdite (comme networkx, graphlib, etc.).
+• Le projet doit être complètement "typesafe" (sécurité des types). L'utilisation de flake8 et mypy est obligatoire.
+• Le projet doit être complètement orienté objet.
 Cela devra être démontré lors de l'évaluation par les pairs.
 
 Chapitre VI
 Laissez le drone voler
-
-Joint à ce sujet, vous trouverez plusieurs fichiers qui représentent le réseau de drones selon le format suivant :
-
+En pièce jointe à ce sujet, vous trouverez plusieurs fichiers qui représentent le réseau de zones dans le format suivant :
 Exemple :
 nb_drones: 5
 start_hub: hub 0 0 [color=green]
@@ -106,226 +56,212 @@ connection: roof1-roof2
 connection: roof2-goal
 connection: corridorA-tunnelB [max_link_capacity=2]
 connection: tunnelB-goal
-
 Intéressant, n'est-ce pas ? Pour être plus précis :
-• La première ligne définit le nombre de drones en utilisant nb_drones: <nombre>.
+• La première ligne définit le nombre de drones en utilisant nb_drones: .
 • Définition des zones sur chaque ligne en utilisant des préfixes de type :
-◦ start_hub: <nom> <x> <y> [métadonnées] marque la zone de départ.
-◦ end_hub: <nom> <x> <y> [métadonnées] marque la zone de fin.
-◦ hub: <nom> <x> <y> [métadonnées] définit une zone normale.
+◦ start_hub:    [métadonnées] marque la zone de départ.
+◦ end_hub:    [métadonnées] marque la zone de fin.
+◦ hub:    [métadonnées] définit une zone régulière.
 ◦ La syntaxe de connexion interdit les tirets dans les noms de zones (voir ci-dessous).
-• Toutes les métadonnées sont facultatives et incluses entre crochets [...] avec des valeurs par défaut :
-◦ zone=<type> (par défaut : normal)
-◦ color=<valeur> (par défaut : aucune)
-◦ max_drones=<nombre> (par défaut : 1) - Nombre maximum de drones pouvant occuper cette zone simultanément.
+• Toutes les métadonnées sont optionnelles et encadrées par des crochets [...] avec des valeurs par défaut :
+◦ zone= (défaut : normal)
+◦ color= (défaut : aucune)
+◦ max_drones= (défaut : 1) - Maximum de drones pouvant occuper cette zone simultanément
 ◦ Les balises à l'intérieur des crochets peuvent apparaître dans n'importe quel ordre.
 • Types de zones :
-◦ normal – Zone standard avec un coût de mouvement de 1 tour (par défaut)
-◦ blocked – Zone inaccessible. Les drones ne doivent pas entrer ou passer par cette zone. Tout chemin l'utilisant est invalide.
+◦ normal – Zone standard avec un coût de mouvement de 1 tour (défaut)
+◦ blocked – Zone inaccessible. Les drones ne doivent pas entrer ni passer par cette zone. Tout chemin l'utilisant est invalide.
 ◦ restricted – Une zone sensible ou dangereuse. Le mouvement vers cette zone coûte 2 tours.
-◦ priority – Une zone privilégiée. Le mouvement vers cette zone coûte 1 tour mais doit être priorisé dans la recherche de chemin.
+◦ priority – Une zone privilégiée. Le mouvement vers cette zone coûte 1 tour mais devrait être priorisé dans la recherche de chemin.
 • Couleurs :
-◦ Les couleurs sont facultatives et peuvent être utilisées pour la représentation visuelle (sortie terminal ou affichage graphique).
-◦ Les valeurs acceptées pour la couleur sont n'importe quelle chaîne de caractères d'un seul mot valide (par ex., red, blue, gray). Il n'y a pas de liste fixe de couleurs autorisées.
+◦ Les couleurs sont optionnelles et peuvent être utilisées pour la représentation visuelle (sortie terminal ou affichage graphique).
+◦ Les valeurs acceptées pour la couleur sont toutes les chaînes de caractères valides d'un seul mot (par ex., red, blue, gray). Il n'y a pas de liste fixe de couleurs autorisées.
 ◦ Lorsque des couleurs sont spécifiées, l'implémentation doit fournir un retour visuel via une sortie terminal colorée ou une représentation graphique.
-• Les connexions sont définies en utilisant connection: <nom1>-<nom2> [métadonnées] :
+• Les connexions sont définies en utilisant connection: - [métadonnées] :
 ◦ Définit une connexion bidirectionnelle (arête) entre deux zones.
 ◦ La syntaxe de connexion interdit les tirets dans les noms de zones.
-◦ Des métadonnées facultatives peuvent être spécifiées entre crochets [...] :
-∗ max_link_capacity=<nombre> (par défaut : 1) - Nombre maximum de drones pouvant traverser cette connexion simultanément.
+◦ Des métadonnées optionnelles peuvent être spécifiées entre crochets [...] :
+∗ max_link_capacity= (défaut : 1) - Maximum de drones pouvant traverser cette connexion simultanément
 • Les commentaires commencent par '#' et sont ignorés.
-
-Les coordonnées des zones seront toujours des entiers, et il y aura toujours une zone de départ unique et une zone de fin unique.
+Les coordonnées des zones seront toujours des entiers, et il y aura toujours une unique zone de départ et une unique zone de fin.
 
 Chapitre VII
 Partie Obligatoire
-
-Comme vous l'avez peut-être deviné, l'objectif principal est de déplacer tous les drones de la zone de départ vers la zone de fin dans le moins de tours de simulation possible.
-
-VII.1 Exigences concernant la recherche de chemin et l'algorithme
+Comme vous l'avez peut-être deviné, l'objectif principal est de déplacer tous les drones de la zone de départ à la zone de fin en un minimum de tours de simulation possibles.
+VII.1
+Recherche de chemin et exigences de l'algorithme
 • Les drones peuvent se déplacer simultanément. L'algorithme doit planifier les chemins pour maximiser le débit et éviter les retards inutiles.
 • Votre implémentation doit gérer :
 ◦ La distribution des drones sur plusieurs chemins.
 ◦ L'attente stratégique lorsque le mouvement n'est pas possible.
-◦ L'évitement des conflits de chemin et des interblocages (deadlocks).
+◦ L'évitement des conflits de chemins et des impasses (deadlocks).
 • L'algorithme doit prendre en compte :
-◦ Les longueurs de chemin, y compris les coûts de mouvement associés aux types de zones (par ex., restricted ou priority).
-◦ La planification des tours, pour empêcher les drones de se heurter ou de se bloquer mutuellement.
-◦ La structure du graphe, pour déterminer les chemins disjoints ou chevauchants disponibles.
-◦ Les contraintes de capacité des zones (max_drones) et de capacité des connexions (max_link_capacity).
+◦ Les longueurs de chemin, y compris les coûts de mouvement associés aux types de zones (par ex., restreint ou prioritaire).
+◦ La planification des tours, pour empêcher les drones d'entrer en collision ou de se bloquer mutuellement.
+◦ La structure du graphe, pour déterminer les chemins disponibles disjoints ou se chevauchant.
+◦ Les contraintes de capacité des zones (max_drones) et la capacité des connexions (max_link_capacity).
 • Votre algorithme doit être adaptable : différentes cartes peuvent nécessiter différentes stratégies de routage, en fonction de la topologie et des types de zones.
-• Représentation visuelle : Votre implémentation doit fournir un retour visuel de la simulation, soit via :
-◦ Une sortie terminal colorée montrant les mouvements des drones et les états des zones.
-◦ Une interface graphique affichant le réseau et les positions des drones.
-◦ Les deux options pour une expérience utilisateur améliorée.
-• Quelle est l'efficacité de votre algorithme ?
+• Représentation visuelle : Votre implémentation doit fournir un retour visuel de la simulation, soit à travers :
+◦ Une sortie terminal colorée montrant les mouvements des drones et l'état des zones
+◦ Une interface graphique affichant le réseau et la position des drones
+◦ Les deux options pour une expérience utilisateur améliorée
+• À quel point votre algorithme est-il efficace ?
 • Peut-il fonctionner avec un grand nombre de drones ?
 • Quelle est la complexité (par ex., O(n), O(log n), etc.) ?
 • Recalculez-vous ou mettez-vous en cache les chemins ?
 • Quel est l'impact sur l'utilisation de la mémoire ?
-• Comment votre représentation visuelle améliore-elle la compréhension de la simulation ?
-
-VII.2 Règles d'occupation des zones
-• Par défaut, une zone peut contenir au plus un drone à tout tour de simulation donné.
-• Les zones avec les métadonnées max_drones=N peuvent contenir jusqu'à N drones simultanément.
+• Comment votre représentation visuelle améliore-t-elle la compréhension de la simulation ?
+VII.2
+Règles d'occupation des zones
+• Par défaut, une zone peut contenir au maximum un drone à n'importe quel tour de simulation donné.
+• Les zones avec la métadonnée max_drones=N peuvent contenir jusqu'à N drones simultanément.
 • Les seules exceptions spéciales aux règles d'occupation sont :
 ◦ La zone de départ : tous les drones commencent ici et peuvent partager l'espace initialement.
 ◦ La zone de fin : plusieurs drones peuvent arriver ici et sont considérés comme livrés.
-• Deux drones ne peuvent pas entrer dans la même zone lors du même tour, à moins que la capacité de la zone ne le permette.
-• Un drone ne peut pas se déplacer dans une zone qui dépasserait sa capacité maximale.
+• Deux drones ne peuvent pas entrer dans la même zone au même tour à moins que la capacité de la zone ne le permette.
+• Un drone ne peut pas se déplacer dans une zone ce qui dépasserait sa capacité maximale.
 • La capacité de connexion (max_link_capacity) définie sur les connexions limite le nombre de drones pouvant traverser la même connexion simultanément.
 • Les drones peuvent se déplacer simultanément, tant que toutes les contraintes de capacité sont respectées.
-
-VII.3 Mécaniques de mouvement et de tour
+VII.3
+Mécaniques de mouvement et de tour
 La simulation se déroule en tours discrets. À chaque tour, chaque drone peut :
 • Se déplacer vers une zone connectée adjacente (si la capacité le permet).
-• Se déplacer sur une connexion vers une zone restreinte (qui nécessite 2 tours pour être atteinte). Dans ce cas, le drone DOIT atteindre sa destination au tour suivant. Il ne peut pas attendre des tours supplémentaires sur la connexion.
+• Se déplacer vers une connexion menant à une zone restreinte (qui nécessite 2 tours pour être atteinte). Dans ce cas, le drone DOIT atteindre sa destination au tour suivant. Il ne peut pas attendre des tours supplémentaires sur la connexion.
 • Rester sur place (par ex., pour attendre, ou si le mouvement est bloqué).
-
-La simulation doit prévenir les conflits et assurer une planification des mouvements valide basée sur l'évaluation de l'état tour par tour :
+La simulation doit empêcher les conflits et assurer une planification des mouvements valide basée sur une évaluation de l'état tour par tour :
 • Les drones sortant d'une zone libèrent de la capacité pour ce même tour.
 • Une zone doit avoir de la capacité disponible pour qu'un drone puisse y entrer (après que tous les drones sortants aient libéré de l'espace).
-• Pour les mouvements sur plusieurs tours (zones restreintes), le drone occupe la connexion pendant le transit et DOIT arriver à la destination après le nombre de tours spécifié. Il ne peut pas attendre sur la connexion un espace vide dans la zone de destination.
-
-Chaque mouvement entre les zones a un coût en tours, basé sur le zone=type de la destination :
-• normal : 1 tour (par défaut)
+• Pour les mouvements sur plusieurs tours (zones restreintes), le drone occupe la connexion pendant le transit et DOIT arriver à destination après le nombre spécifié de tours. Il ne peut pas attendre sur la connexion qu'un espace se vide dans la zone de destination.
+Chaque mouvement entre les zones a un coût en tours, basé sur le type zone=type de la destination :
+• normal : 1 tour (défaut)
 • restricted : 2 tours
-• priority : 1 tour (mais devrait être privilégié dans les algorithmes de recherche de chemin)
-• blocked : Inaccessible — ne peut pas être pénétrée
-
-VII.4 Contraintes du parseur
+• priority : 1 tour (mais devrait être préféré dans les algorithmes de recherche de chemin)
+• blocked : Inaccessible — on ne peut y entrer
+VII.4
+Contraintes de l'analyseur (Parser)
 Le fichier d'entrée doit respecter la structure et la syntaxe attendues :
 • La première ligne doit définir le nombre de drones en utilisant nb_drones: <entier_positif>.
 • Le programme doit être capable de gérer n'importe quel nombre de drones.
 • Il doit y avoir exactement une zone start_hub: et une zone end_hub:.
 • Chaque zone doit avoir un nom unique et des coordonnées entières valides.
-• Les noms de zone peuvent utiliser tous les caractères valides sauf les tirets et les espaces.
-• Les connexions doivent lier uniquement des zones préalablement définies en utilisant connection: <zone1>-<zone2> [métadonnées].
+• Les noms de zones peuvent utiliser tous les caractères valides à l'exception des tirets et des espaces.
+• Les connexions doivent lier uniquement des zones précédemment définies en utilisant connection: - [métadonnées].
 • La même connexion ne doit pas apparaître plus d'une fois (par ex., a-b et b-a sont considérés comme des doublons).
 • Tout bloc de métadonnées (par ex., [zone=... color=...] pour les zones, [max_link_capacity=...] pour les connexions) doit être syntaxiquement valide.
-• Les types de zones doivent être l'un des suivants : normal, blocked, restricted, priority. Tout type invalide doit déclencher une erreur de parsing.
+• Les types de zones doivent être parmi : normal, blocked, restricted, priority. Tout type invalide doit lever une erreur d'analyse.
 • Les valeurs de capacité (max_drones pour les zones, max_link_capacity pour les connexions) doivent être des entiers positifs.
-• Toute autre erreur de parsing doit arrêter le programme et renvoyer un message d'erreur clair indiquant la ligne et la cause.
+• Toute autre erreur d'analyse doit arrêter le programme et renvoyer un message d'erreur clair indiquant la ligne et la cause.
 
-Il est fortement recommandé de créer vos propres fichiers de cartes en plus de ceux fournis dans le sujet pour gérer les cas limites et la gestion des erreurs.
+Il est fortement recommandé de créer vos propres fichiers de carte en plus de ceux fournis dans le sujet pour gérer les cas limites et la gestion des erreurs.
 
-VII.5 Format de sortie de la simulation
+VII.5
+Format de sortie de la simulation
 • La simulation doit afficher le mouvement étape par étape des drones de la zone de départ à la zone de fin.
 • Chaque tour de simulation est représenté par une ligne.
-• Une ligne doit lister tous les mouvements de drones qui se produisent pendant ce tour, séparés par des espaces. Chaque mouvement doit suivre le format : D<ID>-<zone>, ou D<ID>-<connexion> dans le cas des drones encore en vol vers des zones restreintes.
-◦ D<ID> fait référence à l'identifiant unique du drone (par ex., D1, D2).
-◦ <zone> est le nom de la zone de destination.
-◦ <connexion> est le nom de la connexion vers une zone restreinte.
-• Les drones qui ne bougent pas au cours d'un tour donné sont omis de cette ligne.
+• Une ligne doit lister tous les mouvements de drones qui se produisent pendant ce tour, séparés par des espaces. Chaque mouvement doit suivre le format : D-, ou D- dans le cas des drones toujours en vol vers des zones restreintes.
+◦ D fait référence à l'identifiant unique du drone (par ex., D1, D2).
+◦  est le nom de la zone de destination.
+◦  est le nom de la connexion vers une zone restreinte.
+• Les drones qui ne bougent pas à un tour donné sont omis de cette ligne.
 • Les drones qui atteignent la zone de fin sont considérés comme livrés et ne sont plus suivis.
 • La simulation se termine lorsque tous les drones ont atteint la zone de fin.
 • Exemple :
 D1-roof1 D2-corridorA
 D1-roof2 D2-tunnelB
 D1-goal D2-goal
-
-VII.6 Système de notation
-• La performance d'une solution est évaluée sur la base du nombre total de tours de simulation requis pour acheminer tous les drones de la zone de départ à la zone de fin.
+VII.6
+Système de notation
+• La performance d'une solution est évaluée en fonction du nombre total de tours de simulation requis pour acheminer tous les drones de la zone de départ à la zone de fin.
 • Moins il y a de tours, meilleur est le score.
 • Une simulation valide doit :
 ◦ Se conformer à toutes les règles de mouvement et d'occupation.
 ◦ Gérer correctement les coûts de mouvement associés aux types de zones.
-◦ Respecter toutes les contraintes de capacité (limites de zones et de connexions).
-◦ Éviter tous les conflits (par ex., dépasser la capacité de la zone ou de la connexion).
-
-Les métriques d'évaluation secondaires (facultatives) peuvent inclure :
+◦ Respecter toutes les contraintes de capacité (limites de zone et de connexion).
+◦ Éviter tous les conflits (par ex., dépassement de la capacité de la zone ou de la connexion).
+Des métriques d'évaluation secondaires (optionnelles) peuvent inclure :
 • Le nombre de drones déplacés par tour (efficacité de l'allocation des chemins).
 • Le nombre moyen de tours par drone.
-• Le coût total des chemins (somme des coûts de mouvement pondérés pour tous les drones).
-• Qualité et utilité de la représentation visuelle.
+• Le coût total du chemin (somme des coûts de mouvement pondérés pour l'ensemble des drones).
+• La qualité et l'utilité de la représentation visuelle.
+En cas de nombre de tours identique, les solutions peuvent être comparées en fonction des métriques secondaires ou de la qualité du code.
 
-En cas de nombre de tours identique, les solutions peuvent être comparées sur la base de métriques secondaires ou de la qualité du code.
+Ces métriques secondaires ne sont pas obligatoires à calculer automatiquement, mais les apprenants sont encouragés à les afficher dans la sortie de leur simulation ou leur documentation pour aider les pairs à évaluer la performance.
 
-Ces métriques secondaires ne sont pas obligatoires à calculer automatiquement, mais les apprenants sont encouragés à les afficher dans la sortie de leur simulation ou leur documentation pour aider les pairs à évaluer les performances.
-
-VII.7 Références de performance
-Les objectifs de performance suivants définissent le niveau d'optimisation attendu que votre implémentation doit atteindre.
+VII.7
+Références de performance (Benchmarks)
+Les cibles de performance suivantes définissent le niveau d'optimisation attendu que votre implémentation doit atteindre.
 • Performance attendue :
 ◦ Les cartes faciles devraient être résolues en moins de 10 tours
 ◦ Les cartes moyennes devraient être résolues en 10–30 tours
 ◦ Les cartes difficiles devraient être résolues en moins de 60 tours
-◦ La carte Challenger (facultative) devrait viser à battre le record de référence de 45 tours
-Ce niveau est purement facultatif et n'affecte pas votre note.
-
-Pour vous aider à évaluer l'efficacité de votre algorithme, voici des objectifs de performance de référence basés sur les cartes de test fournies :
+◦ La carte Challenger (optionnelle) devrait viser à battre le record de référence de 45 tours
+Ce niveau est purement optionnel et n'affecte pas votre note.
+Pour vous aider à évaluer l'efficacité de votre algorithme, voici des cibles de performance de référence basées sur les cartes de test fournies :
 • Cartes Faciles :
-◦ Chemin linéaire avec 2 drones : Objectif ≤ 6 tours
-◦ Bifurcation simple avec 4 drones : Objectif ≤ 8 tours
-◦ Capacité de base avec 4 drones : Objectif ≤ 6 tours
+◦ Chemin linéaire avec 2 drones : Cible ≤ 6 tours
+◦ Bifurcation simple avec 4 drones : Cible ≤ 8 tours
+◦ Capacité de base avec 4 drones : Cible ≤ 6 tours
 • Cartes Moyennes :
-◦ Piège en cul-de-sac avec 5 drones : Objectif ≤ 12 tours
-◦ Boucle circulaire avec 6 drones : Objectif ≤ 15 tours
-◦ Puzzle de priorité avec 5 drones : Objectif ≤ 12 tours
+◦ Piège en cul-de-sac avec 5 drones : Cible ≤ 12 tours
+◦ Boucle circulaire avec 6 drones : Cible ≤ 15 tours
+◦ Puzzle de priorité avec 5 drones : Cible ≤ 12 tours
 • Cartes Difficiles :
-◦ Cauchemar de labyrinthe avec 8 drones : Objectif ≤ 30 tours
-◦ Enfer de capacité avec 12 drones : Objectif ≤ 35 tours
-◦ Défi ultime avec 15 drones : Objectif ≤ 45 tours
-• Carte Challenger (facultative — pour des implémentations exceptionnelles) :
+◦ Cauchemar de labyrinthe avec 8 drones : Cible ≤ 30 tours
+◦ Enfer de capacité avec 12 drones : Cible ≤ 35 tours
+◦ Défi ultime avec 15 drones : Cible ≤ 45 tours
+• Carte Challenger (optionnelle — pour des implémentations exceptionnelles) :
 ◦ Le Rêve Impossible avec 25 drones : Record de référence : 45 tours
-◦ Ce défi quasi-irrésoluble est conçu pour la recherche algorithmique et l'optimisation
+◦ Ce défi quasi insoluble est conçu pour la recherche algorithmique et l'optimisation
 ◦ Résoudre cette carte démontre des compétences exceptionnelles en recherche de chemin et en optimisation
-◦ Remarque : Ce niveau est purement facultatif et n'affecte pas votre note
+◦ Note : Ce niveau est purement optionnel et n'affecte pas votre note
 
-Ces références sont fournies comme cibles d'optimisation pour vous aider à évaluer les performances de votre algorithme. Atteindre ces cibles démontre une implémentation bien optimisée et sera évalué lors de l'évaluation par les pairs.
+Ces références sont fournies comme des cibles d'optimisation pour vous aider à évaluer les performances de votre algorithme. Atteindre ces cibles démontre une implémentation bien optimisée et sera évalué lors de l'évaluation par les pairs.
+
 • Votre algorithme peut-il atteindre ces références de performance ?
-• Comment votre solution se compare-t-elle aux objectifs de référence ?
-• Quelles optimisations avez-vous implémentées pour obtenir de meilleures performances ?
+• Comment votre solution se compare-t-elle aux cibles de référence ?
+• Quelles optimisations avez-vous mises en œuvre pour obtenir de meilleures performances ?
 • Pouvez-vous résoudre la carte Challenger et battre le record de 45 tours ?
 
 Chapitre VIII
 Exigences du Readme
-
-Un fichier README.md doit être fourni à la racine de votre dépôt Git. Son but est de permettre à toute personne ne connaissant pas le projet (pairs, staff, recruteurs, etc.) de comprendre rapidement en quoi consiste le projet, comment l'exécuter et où trouver plus d'informations sur le sujet.
-
+Un fichier README.md doit être fourni à la racine de votre dépôt Git. Son but est de permettre à toute personne peu familière avec le projet (pairs, personnel, recruteurs, etc.) de comprendre rapidement en quoi consiste le projet, comment l'exécuter et où trouver plus d'informations sur le sujet.
 Le README.md doit inclure au moins :
-• La toute première ligne doit être en italique et indiquer : This project has been created as part of the 42 curriculum by [, [, [...]]].
-• Une section "Description" qui présente clairement le projet, incluant son but et un bref aperçu.
-• Une section "Instructions" contenant toute information pertinente concernant la compilation, l'installation et/ou l'exécution.
-• Une section "Resources" listant les références classiques liées au sujet (documentation, articles, tutoriels, etc.), ainsi qu'une description de la façon dont l'IA a été utilisée — en précisant pour quelles tâches et quelles parties du projet.
-➠ Des sections supplémentaires peuvent être requises en fonction du projet (par ex., exemples d'utilisation, liste de fonctionnalités, choix techniques, etc.).
-
-Tout ajout requis sera explicitement listé ci-dessous.
-• Une description détaillée de vos choix d'algorithme et de votre stratégie d'implémentation doit également être incluse.
-• La documentation des fonctionnalités de représentation visuelle et de la manière dont elles améliorent l'expérience utilisateur.
+• La toute première ligne doit être en italique et indiquer : Ce projet a été créé dans le cadre du cursus 42 par [, [, [...]]]. (This project has been created as part of the 42 curriculum by [, [, [...]]].)
+• Une section « Description » qui présente clairement le projet, y compris son but et un bref aperçu.
+• Une section « Instructions » contenant toute information pertinente concernant la compilation, l'installation et/ou l'exécution.
+• Une section « Ressources » listant les références classiques liées au sujet (documentation, articles, tutoriels, etc.), ainsi qu'une description de la façon dont l'IA a été utilisée — en précisant pour quelles tâches et quelles parties du projet.
+➠ Des sections supplémentaires peuvent être requises en fonction du projet (par ex., exemples d'utilisation, liste des fonctionnalités, choix techniques, etc.).
+Toute addition requise sera explicitement listée ci-dessous.
+• Une description détaillée de vos choix d'algorithmes et de votre stratégie d'implémentation doit également être incluse.
+• Une documentation sur les fonctionnalités de représentation visuelle et sur la manière dont elles améliorent l'expérience utilisateur.
 
 Votre README doit être rédigé en anglais.
 
 Chapitre IX
 Partie Bonus
-
 Cette partie Bonus ne sera évaluée que si toutes les exigences obligatoires sont satisfaites.
 Voici des fonctionnalités que vous pouvez implémenter pour améliorer votre projet :
-• Performances exceptionnelles :
-◦ Vous atteignez 'parfaitement' les cibles de performance de référence pour toutes les cartes fournies.
-◦ 'parfaitement' signifie que vous avez un nombre exact ou inférieur de tours par rapport à la cible.
+• Performance exceptionnelle :
+◦ Vous atteignez « parfaitement » les cibles de performance de référence pour toutes les cartes fournies.
+◦ « parfaitement » signifie que vous égalez ou battez le nombre de tours cible.
 • Carte Challenger :
-◦ La carte "The Impossible Dream" est résolue et bat le record de référence de 45 tours.
+◦ La carte Le Rêve Impossible est résolue et bat le record de référence de 45 tours.
 
 Chapitre X
-Soumission et évaluation par les pairs
-
-Soumettez votre travail dans votre dépôt Git comme d'habitude. Seul le travail à l'intérieur de votre dépôt sera évalué pendant l'évaluation par les pairs. N'hésitez pas à vérifier les noms de vos fichiers pour vous assurer qu'ils sont corrects.
-
+Soumission et évaluation par les pairs (peer-review)
+Soumettez votre travail dans votre dépôt Git comme d'habitude. Seul le travail à l'intérieur de votre dépôt sera évalué lors de l'évaluation par les pairs. N'hésitez pas à vérifier les noms de vos fichiers pour vous assurer qu'ils sont corrects.
 Placez tous vos fichiers à la racine de votre dépôt.
 Une simulation entièrement fonctionnelle écrite en Python, comprenant :
-• Un parseur pour le format de fichier d'entrée.
-• Un moteur de simulation respectant les règles de mouvement et de zones.
-• Un algorithme de recherche de chemin (ou plusieurs) capable de minimiser le nombre total de tours.
-• Un système de représentation visuelle (couleurs de terminal et/ou interface graphique).
-• Un terminal ou une sortie de journal qui suit le format spécifié.
-
-Notez que nous pouvons vous demander d'expliquer votre code ou même éventuellement d'écrire du code. Assurez-vous d'être préparé pour cela.
-
+• Un analyseur (parser) pour le format de fichier d'entrée.
+• Un moteur de simulation respectant les règles de mouvement et de zone.
+• Un algorithme (ou plusieurs) de recherche de chemin capable de minimiser le total des tours.
+• Un système de représentation visuelle (couleurs du terminal et/ou interface graphique).
+• Une sortie terminal ou journal (log) qui suit le format spécifié.
+Notez que nous pouvons vous demander d'expliquer votre code ou même éventuellement d'écrire du code. Assurez-vous d'y être préparé.
 Les cartes d'évaluation peuvent être différentes de celles fournies dans le sujet.
-
-Pendant l'évaluation, une brève modification du projet peut occasionnellement être demandée. Cela pourrait impliquer un changement mineur de comportement, quelques lignes de code à écrire ou à réécrire, ou une fonctionnalité facile à ajouter.
+Pendant l'évaluation, une brève modification du projet peut parfois être demandée. Cela pourrait impliquer un changement de comportement mineur, quelques lignes de code à écrire ou réécrire, ou une fonctionnalité facile à ajouter.
 Bien que cette étape puisse ne pas s'appliquer à tous les projets, vous devez y être préparé si elle est mentionnée dans les directives d'évaluation.
 Cette étape est destinée à vérifier votre compréhension réelle d'une partie spécifique du projet.
-La modification peut être effectuée dans n'importe quel environnement de développement de votre choix (par ex., votre configuration habituelle), et elle devrait être réalisable en quelques minutes — à moins qu'un délai spécifique ne soit défini dans le cadre de l'évaluation.
-On peut vous demander, par exemple, de faire une petite mise à jour d'une fonction ou d'un script, de modifier un affichage, ou d'ajuster une structure de données pour stocker de nouvelles informations, etc.
+La modification peut être effectuée dans l'environnement de développement de votre choix (par ex., votre configuration habituelle), et elle devrait être réalisable en quelques minutes — à moins qu'un délai spécifique ne soit défini dans le cadre de l'évaluation.
+Il peut vous être demandé, par exemple, de faire une petite mise à jour d'une fonction ou d'un script, de modifier un affichage, ou d'ajuster une structure de données pour stocker de nouvelles informations, etc.
 Les détails (portée, cible, etc.) seront spécifiés dans les directives d'évaluation et peuvent varier d'une évaluation à une autre pour le même projet.
