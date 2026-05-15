@@ -5,6 +5,7 @@ from typing import Any, Self
 
 
 class Global(BaseModel):
+    model_config = {"arbitrary_types_allowed": True}
     glb_drones: Drone = Field(...)
     glb_start: Start = Field(...)
     glb_end: End = Field(...)
@@ -60,7 +61,8 @@ class Global(BaseModel):
         for nb in all_pos:
             if nb <= pos_drone:
                 raise ValueError("[DRONE]\033[1;37m The drone parameter "
-                                 "is not in the first position")
+                                 "is not in the first position \033[1;35m"
+                                 f"line → {pos_drone}")
         return self
 
     @model_validator(mode="after")
@@ -209,14 +211,20 @@ def create_connection(string: str, line: int) -> Connection:
         for item in option.split():
             key, value = item.split("=", 1)
             if key == "max_link_capacity":
-                connection.max_link_capacity = int(value)
-            else:
-                raise ValueError("[CONNECTION]\033[1;37m InvalidOption "
-                                 f"\033[1;35mline → {line}")
+                try:
+                    int_value = int(value)
+                except ValueError:
+                    raise ValueError(
+                        "[CONNECTION]\033[1;37m Invalid value "
+                        f"\033[1;36m('{value}') "
+                        "\033[1;37mfor max_link_capacity "
+                        f"\033[1;35mline → {line}"
+                    )
             if connection.max_link_capacity < 1:
                 raise ValueError("[HUB]\033[1;37m max_link_capacity "
                                  "must be greater than 0 "
                                  f"\033[1;35mline → {line}")
+            connection.max_link_capacity = int_value
     else:
         if len(string.split()) != 1 or string.count("-") != 1:
             raise ValueError("[CONNECTION]\033[1;37m InvalidOption "

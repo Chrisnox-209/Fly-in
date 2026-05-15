@@ -1,15 +1,17 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Annotated
+from typing import Optional
 
 
-class Node(BaseModel):
-    name: Annotated[str, Field(min_length=1, strip_whitespace=True)]
-    x: int = Field(...)
-    y: int = Field(...)
-    nb_line: int = Field(..., ge=1)
-    color: Optional[str] = None
-    max_drones: Optional[int] = Field(default=None, ge=1)
-    zone: str = Field(default="normal")
+class Node:
+    def __init__(self, name: str, x: int, y: int,
+                 nb_line: int, color=None,
+                 max_drones=1, zone="normal") -> None:
+        self.name: str = name
+        self.x: int = x
+        self.y: int = y
+        self.nb_line: int = nb_line
+        self.color: Optional[str] = color
+        self.max_drones: int = max_drones
+        self.zone: str = zone
 
 
 class Hub(Node):
@@ -24,13 +26,17 @@ class End(Node):
     pass
 
 
-class Drone(BaseModel):
-    nb_drone: int = Field(..., ge=1)
-    nb_line: int = Field(..., ge=1)
+class Drone:
+    def __init__(self, nb_drone: int, nb_line: int, position=None) -> None:
+        self.nb_drone: int = nb_drone
+        self.nb_line: int = nb_line
+        self.position: Optional[str] = position
 
 
-class Connection(BaseModel):
-    connection_a: Annotated[str, Field(min_length=1, strip_whitespace=True)]
-    connection_b: Annotated[str, Field(min_length=1, strip_whitespace=True)]
-    nb_line: int = Field(..., ge=1)
-    max_link_capacity: int = Field(default=1)
+class Connection:
+    def __init__(self, connection_a: str, connection_b: str,
+                 nb_line: int, max_link_capacity=1) -> None:
+        self.connection_a: str = connection_a
+        self.connection_b: str = connection_b
+        self.nb_line: int = nb_line
+        self.max_link_capacity: int = max_link_capacity
