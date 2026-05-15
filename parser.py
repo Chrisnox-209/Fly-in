@@ -1,11 +1,19 @@
 import sys
 from structure import Drone, Start, End, Hub, Connection
-from pydantic import BaseModel, Field, ValidationError, model_validator
-from typing import Any, Self
+from typing import Any, ClassVar, Self
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    model_validator,
+)
 
 
 class Global(BaseModel):
-    model_config = {"arbitrary_types_allowed": True}
+    model_config: ClassVar[ConfigDict] = ConfigDict(
+        arbitrary_types_allowed=True
+    )
     glb_drones: Drone = Field(...)
     glb_start: Start = Field(...)
     glb_end: End = Field(...)
