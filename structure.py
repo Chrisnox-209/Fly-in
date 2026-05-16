@@ -4,7 +4,7 @@ from typing import Optional
 class Node:
     def __init__(self, name: str, x: int, y: int,
                  nb_line: int, color=None,
-                 max_drones=1, zone="normal") -> None:
+                 max_drones: int = 1, zone: str = "normal") -> None:
         self.name: str = name
         self.x: int = x
         self.y: int = y
@@ -27,7 +27,8 @@ class End(Node):
 
 
 class Drone:
-    def __init__(self, nb_drone: int, nb_line: int, position=None) -> None:
+    def __init__(self, nb_drone: int, nb_line: int,
+                 position: int = None) -> None:
         self.nb_drone: int = nb_drone
         self.nb_line: int = nb_line
         self.position: Optional[str] = position

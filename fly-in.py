@@ -1,13 +1,14 @@
 import os
 import sys
+from typing import Literal
 from parser import parse
 
 
-def txt_files():
+def txt_files() -> str | Literal[False]:
     count: int = 0
     for file in os.listdir("."):
         if file.endswith(".txt"):
-            file_map = file
+            file_map: str = file
             count += 1
     if count < 1:
         print("[Error]: map file not found")
@@ -21,7 +22,7 @@ def txt_files():
 
 def main() -> None:
     if txt_files() is not False:
-        file_map = txt_files()
+        file_map: str | Literal[False] = txt_files()
     else:
         sys.exit(1)
     parse(file_map)
