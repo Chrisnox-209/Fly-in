@@ -1,7 +1,20 @@
-*.tar.gz
-*.pdf
-**/*.pdf
+# Python-generated files
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# cache 
 __pycache__/
 **/__pycache__/
 .mypy_cache/
 **/.mypy_cache/
+
+# other 
+*.tar.gz
+*.pdf
+**/*.pdf
