@@ -107,17 +107,17 @@ class Global(BaseModel):
                                  "\033[1;37m[Valid color list]: "
                                  f"\033[1;32m{list_colors}")
 
-        if self.glb_start.color not in list_colors and hub.color is not None:
+        if self.glb_start.color not in list_colors and self.glb_start.color is not None:
             raise ValueError("[START HUB]\033[1;37m The color for the "
                              "Start hub is not valid \033[1;35m line → "
-                             f"{hub.nb_line}\n\n"
+                             f"{self.glb_start.nb_line}\n\n"
                              "\033[1;37m[Valid color list]: "
                              f"\033[1;32m{list_colors}")
 
-        if self.glb_end.color not in list_colors and hub.color is not None:
+        if self.glb_end.color not in list_colors and self.glb_end.color is not None:
             raise ValueError("[END HUB]\033[1;37m The color for the "
                              "End  hub is not valid \033[1;35m line → "
-                             f"{hub.nb_line}\n\n"
+                             f"{self.glb_end.nb_line}\n\n"
                              "\033[1;37m[Valid color list]: "
                              f"\033[1;32m{list_colors}")
 
