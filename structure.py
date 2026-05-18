@@ -28,10 +28,10 @@ class End(Node):
 
 class Drone:
     def __init__(self, nb_drone: int, nb_line: int,
-                 position: int = None) -> None:
+                 position: int | None = None) -> None:
         self.nb_drone: int = nb_drone
         self.nb_line: int = nb_line
-        self.position: Optional[str] = position
+        self.position: int | None = position
 
 
 class Connection:
