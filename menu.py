@@ -188,12 +188,13 @@ class Menu:
         # --- Display Error Message ---
         if self.error_msg:
             current_time = pygame.time.get_ticks()
-            if current_time - self.error_time < 3000: # Display for 3 seconds
-                error_surf = self.font_error.render(self.error_msg, True, (255, 255, 255))
-                bg_rect = error_surf.get_rect(center=(self.width // 2, 100))
-                bg_rect.inflate_ip(40, 20)
-                pygame.draw.rect(screen, (220, 50, 50), bg_rect, border_radius=10)
-                screen.blit(error_surf, error_surf.get_rect(center=bg_rect.center))
+            if current_time - self.error_time < 3000:
+                lines = self.error_msg.splitlines()
+                for i, line in enumerate(lines):
+                    surf = self.font_error.render(line, True, (255,255,255))
+                    bg_rect = surf.get_rect(center=(self.width//2, 60 + i * 70))
+                    bg_rect.inflate_ip(40, 20)
+                    pygame.draw.rect(screen, (220, 50, 50), bg_rect, border_radius=10)
+                    screen.blit(surf, surf.get_rect(center=bg_rect.center))
             else:
-                self.error_msg = "" # Clear message when time is up
-
+                self.error_msg = ""

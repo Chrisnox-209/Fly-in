@@ -30,6 +30,6 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
-    # app = GameApp()
-    # app.run()
+    # main()
+    app = GameApp()
+    app.run()
