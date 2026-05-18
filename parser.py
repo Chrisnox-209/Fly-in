@@ -1,4 +1,3 @@
-import sys
 from structure import Drone, Start, End, Hub, Connection
 from typing import Any, ClassVar, Self
 from pydantic import (
@@ -133,9 +132,40 @@ class Global(BaseModel):
             if hub.zone not in list_zone:
                 raise ValueError("[HUB] The zone for the "
                                  "hub is not valid line → "
-                                 f"{hub.nb_line}\n\n"
+                                 f"{hub.nb_line}\n"
                                  "[Valid zone list]: "
                                  f"{list_zone}")
+        return self
+
+    @model_validator(mode="after")
+    def check_coordinates(self) -> Self:
+        list_xy: list[tuple[int, int]] = [(hub.x, hub.y)
+                                          for hub in self.glb_hub]
+        list_xy.append((self.glb_start.x, self.glb_start.y))
+        list_xy.append((self.glb_end.x, self.glb_end.y))
+
+        data_start: tuple[int, int] = (self.glb_start.x, self.glb_start.y)
+        if list_xy.count(data_start) > 1:
+            raise ValueError(f"[START_HUB] {self.glb_start.name} These "
+                             f"coordinates {data_start} "
+                             "are already in use "
+                             f"line → {self.glb_start.nb_line}")
+
+        for hub in self.glb_hub:
+            data: tuple[int, int] = (hub.x, hub.y)
+            if list_xy.count(data) > 1:
+                raise ValueError(f"[HUB] {hub.name} These coordinates "
+                                 f"{data} "
+                                 "are already in use "
+                                 f"line → {hub.nb_line}")
+
+        data_end: tuple[int, int] = (self.glb_end.x, self.glb_end.y)
+        if list_xy.count(data_end) > 1:
+            raise ValueError(f"[END_HUB] {self.glb_end.name} These "
+                             f"coordinates {data} "
+                             "are already in use "
+                             f"line → {self.glb_end.nb_line}")
+
         return self
 
 
