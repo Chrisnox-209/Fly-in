@@ -2,6 +2,7 @@ import os
 import sys
 from typing import Literal
 from parser import parse
+from game import GameApp
 
 
 def txt_files() -> str | Literal[False]:
@@ -30,3 +31,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+    # app = GameApp()
+    # app.run()
