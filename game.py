@@ -5,25 +5,24 @@ from pygame.font import Font
 from menu import Menu
 from parser import Global, ParseMaps
 from typing import Any, List, NoReturn
+from generator_map import GraphRenderer
 
 
 class SimpleGame:
-    def __init__(self, map_path) -> None:
-        self.map_path: Any = map_path
+    def __init__(self, game_map: Global, map_path: str) -> None:
+        self.game_map: Global = game_map
+        self.map_path: str = map_path
         self.font: Font = pygame.font.SysFont("arial", 80, bold=True)
+        
+        self.renderer: GraphRenderer[Global] = GraphRenderer(self.game_map)
 
     def update(self, events) -> None:
         pass
 
     def draw(self, screen) -> None:
-        screen.fill((20, 20, 20))
-        text_surf: pygame.Surface = self.font.render("GAME IN PROGRESS",
-                                                     True, (0, 255, 0))
-        path_surf: pygame.Surface = self.font.render(f"File: {self.map_path}",
-                                                     True, (255, 255, 255))
 
-        screen.blit(text_surf, (200, 200))
-        screen.blit(path_surf, (200, 350))
+        screen.fill((20, 20, 20))
+        self.renderer.all_sprites.draw(screen)
 
 
 class GameApp:
@@ -32,7 +31,7 @@ class GameApp:
         self.width, self.height = 2832, 1504
         self.screen: pygame.Surface = pygame.display.set_mode(
             (self.width, self.height))
-
+ 
         icon: pygame.Surface = pygame.image.load(
             "assets/icon.png").convert_alpha()
         pygame.display.set_icon(icon)
@@ -63,7 +62,7 @@ class GameApp:
             elif self.state == "PARSING":
                 try:
                     game_map: Global = ParseMaps.parse(self.map_to_load)
-                    self.game = SimpleGame(game_map)
+                    self.game = SimpleGame(game_map, self.map_to_load)
                     self.menu.video.release()
                     self.state = "GAME"
                 except Exception as error:
