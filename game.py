@@ -3,7 +3,7 @@ import sys
 from pygame.event import Event
 from pygame.font import Font
 from menu import Menu
-from parser import Global, parse
+from parser import Global, ParseMaps
 from typing import Any, List, NoReturn
 
 
@@ -62,7 +62,7 @@ class GameApp:
 
             elif self.state == "PARSING":
                 try:
-                    game_map: Global = parse(self.map_to_load)
+                    game_map: Global = ParseMaps.parse(self.map_to_load)
                     self.game = SimpleGame(game_map)
                     self.menu.video.release()
                     self.state = "GAME"

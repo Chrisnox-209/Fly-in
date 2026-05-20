@@ -1,7 +1,7 @@
 import os
 import sys
 from typing import Literal
-from parser import parse
+from parser import ParseMaps
 from game import GameApp
 
 
@@ -26,7 +26,7 @@ def main() -> None:
         file_map: str | Literal[False] = txt_files()
     else:
         sys.exit(1)
-    parse(file_map)
+    ParseMaps.parse(file_map)
 
 
 if __name__ == "__main__":
