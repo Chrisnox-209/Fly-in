@@ -172,7 +172,7 @@ class Global(BaseModel):
 class ParseMaps():
 
     @staticmethod
-    def create_hub(type_obj: Any, string: str, line: int) -> Any:
+    def create_hub(type_obj: Any, string: str, line: int, id: int) -> Any:
         key: str
         value: str
         if "[" in string and "]" in string:
@@ -197,6 +197,7 @@ class ParseMaps():
                                  f" line → {line}")
             hub: Any = type_obj(
                 name=data_list[0],
+                id=id,
                 x=x,
                 y=y,
                 nb_line=line
@@ -308,6 +309,7 @@ class ParseMaps():
 
         try:
             data: Any
+            id: int = 0
             with open(file_name, 'r', encoding='utf8') as file:
                 for i, line in enumerate(file):
                     index: str = line.split(":", 1)[0].strip()
@@ -330,7 +332,9 @@ class ParseMaps():
                                              "is duplicated "
                                              f"line → {i + 1}")
                         data = line.split(":", 1)[1].strip()
-                        hub_start = ParseMaps.create_hub(Start, data, (i + 1))
+                        hub_start = ParseMaps.create_hub(Start, data,
+                                                         (i + 1), id)
+                        id += 1
                     elif index == "end_hub":
                         end_flag += 1
                         if end_flag > 1:
@@ -338,11 +342,13 @@ class ParseMaps():
                                              "is duplicated "
                                              f"line → {i + 1}")
                         data = line.split(":", 1)[1].strip()
-                        hub_end = ParseMaps.create_hub(End, data, (i + 1))
+                        hub_end = ParseMaps.create_hub(End, data, (i + 1), id)
+                        id += 1
                     elif index == "hub":
                         data = line.split(":", 1)[1].strip()
-                        hub: Hub = ParseMaps.create_hub(Hub, data, (i + 1))
+                        hub: Hub = ParseMaps.create_hub(Hub, data, (i + 1), id)
                         hub_list.append(hub)
+                        id += 1
                     elif index == "connection":
                         data = line.split(":", 1)[1].strip()
                         connection: Connection = (
