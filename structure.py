@@ -2,10 +2,11 @@ from typing import Optional
 
 
 class Node:
-    def __init__(self, name: str, x: int, y: int,
+    def __init__(self, name: str, id: int, x: int, y: int,
                  nb_line: int, color=None,
                  max_drones: int = 1, zone: str = "normal") -> None:
         self.name: str = name
+        self.id: int = id
         self.x: int = x
         self.y: int = y
         self.nb_line: int = nb_line
