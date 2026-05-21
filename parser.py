@@ -95,8 +95,10 @@ class Global(BaseModel):
 
     @model_validator(mode="after")
     def check_color(self) -> Self:
-        list_colors: list[str] = ["yellow", "grey", "red",
-                                  "blue", "green", "pink", "cyan"]
+        list_colors: list[str] = ["yellow", "grey", "red", "orange", "brown",
+                                  "blue", "green", "pink", "cyan", "purple",
+                                  "lime", "magenta", "gold", "black", "maroon",
+                                  "darkred", "violet", "crimson", "rainbow"]
 
         for hub in self.glb_hub:
             if hub.color not in list_colors and hub.color is not None:
