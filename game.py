@@ -22,6 +22,7 @@ class SimpleGame:
     def draw(self, screen) -> None:
 
         screen.fill((20, 20, 20))
+        self.renderer.draw_connections(screen)
         self.renderer.all_sprites.draw(screen)
 
 

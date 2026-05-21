@@ -32,6 +32,8 @@ class VisualNode(pygame.sprite.Sprite):
         pygame.draw.circle(self.image, color, (radius, radius), radius)
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+        
+        
 
 
 class GraphRenderer:
@@ -43,13 +45,12 @@ class GraphRenderer:
         pygame.display.set_icon(icon)
 
         pygame.display.set_caption("Fly_In")
-        # self.background = pygame.image.load('assets/sky.jpg')
+
 
         self.all_sprites = pygame.sprite.Group()
         self.map_data = map_data
         self.dict_x, self.dict_y = self.calcul_nb_xy()
         pygame.init()
-
 
         bigx = max(self.dict_x.values())
         smallx = min(self.dict_x.values())
@@ -103,7 +104,9 @@ class GraphRenderer:
             hub = VisualNode(pos_hubx, pos_huby, hub.color, self.dict_x, self.dict_y, base_radius, hub.max_drones)
             self.all_sprites.add(hub)
 
-
+    def draw_connections(self, surface):
+        pygame.draw.line(self.screen, (255, 255, 255), (100, 100), (2000, 100), 10)
+    
     def calcul_nb_xy(self) -> tuple[dict, dict]:
         dict_y: dict = {}
         dict_x: dict = {}
