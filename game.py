@@ -5,7 +5,7 @@ from pygame.font import Font
 from menu import Menu
 from parser import Global, ParseMaps
 from typing import Any, List, NoReturn
-from generator_map import GraphRenderer
+from generator_map import GraphRenderer,Buttom_Gm
 
 
 class SimpleGame:
@@ -13,15 +13,23 @@ class SimpleGame:
         self.game_map: Global = game_map
         self.map_path: str = map_path
         self.font: Font = pygame.font.SysFont("arial", 80, bold=True)
-        
+
+        self.font_btn = pygame.font.SysFont("arial", 40, bold=True)
+        self.return_btn = Buttom_Gm(190, 1300, 90, 90, "⌂", (50, 50, 200))
+
         self.renderer: GraphRenderer[Global] = GraphRenderer(self.game_map)
 
     def update(self, events) -> None:
-        pass
+        for event in events:
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if self.return_btn.rect.collidepoint(event.pos):
+                    return "MENU"
+        return None
 
     def draw(self, screen) -> None:
 
-        screen.fill((20, 20, 20))
+        screen.fill((100, 100, 100))
+        self.return_btn.draw(screen)
         self.renderer.draw_connections(screen)
         self.renderer.all_sprites.draw(screen)
 
@@ -32,7 +40,7 @@ class GameApp:
         self.width, self.height = 2832, 1504
         self.screen: pygame.Surface = pygame.display.set_mode(
             (self.width, self.height))
- 
+
         icon: pygame.Surface = pygame.image.load(
             "assets/icon.png").convert_alpha()
         pygame.display.set_icon(icon)
@@ -64,7 +72,7 @@ class GameApp:
                 try:
                     game_map: Global = ParseMaps.parse(self.map_to_load)
                     self.game = SimpleGame(game_map, self.map_to_load)
-                    self.menu.video.release()
+                    # self.menu.video.release()
                     self.state = "GAME"
                 except Exception as error:
                     print(error)
@@ -73,7 +81,9 @@ class GameApp:
 
             elif self.state == "GAME":
                 if self.game is not None:
-                    self.game.update(events)
+                    next_state = self.game.update(events)
+                    if next_state == "MENU":
+                        self.state = "MENU"
                     self.game.draw(self.screen)
 
             pygame.display.update()

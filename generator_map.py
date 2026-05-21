@@ -2,16 +2,51 @@ import pygame
 import sys
 import math
 from parser import ParseMaps
+from typing import Any
+from pygame.font import Font
 import warnings
 from collections import Counter
+from enum import Enum
 warnings.filterwarnings(
     "ignore",
     message="pkg_resources is deprecated as an API"
 )
 
+class HubColor(Enum):
+    YELLOW   = (255, 255, 0)
+    GREY     = (128, 128, 128)
+    RED      = (255, 0, 0)
+    ORANGE   = (255, 165, 0)
+    BROWN    = (165, 42, 42)
+    BLUE     = (0, 0, 255)
+    GREEN    = (0, 128, 0)
+    PINK     = (255, 192, 203)
+    CYAN     = (0, 255, 255)
+    PURPLE   = (128, 0, 128)
+    LIME     = (0, 255, 0)
+    MAGENTA  = (255, 0, 255)
+    GOLD     = (255, 215, 0)
+    BLACK    = (0, 0, 0)
+    MAROON   = (128, 0, 0)
+    DARKRED  = (139, 0, 0)
+    VIOLET   = (238, 130, 238)
+    CRIMSON  = (220, 20, 60)
+    RAINBOW  = "dynamic"
+
+    @property
+    def rgb(self):
+        if self == HubColor.RAINBOW:
+            teinte = (pygame.time.get_ticks() // 10) % 360
+            couleur = pygame.Color(0)
+            couleur.hsva = (teinte, 100, 100, 100)
+            return couleur
+        return self.value
+
+
+
 
 class VisualNode(pygame.sprite.Sprite):
-    def __init__(self, x: int, y: int, color: str,
+    def __init__(self, x: int, y: int, color: Any,
                  dict_x: dict, dict_y: dict, base_radius, capacity_drones: int) -> None:
         super().__init__()
         self.dict_x = dict_x
@@ -28,28 +63,54 @@ class VisualNode(pygame.sprite.Sprite):
         maximum_allowed_radius = math.ceil(base_radius * 0.9)
         radius = min(theoretical_radius, maximum_allowed_radius)
 
-        self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
-        pygame.draw.circle(self.image, color, (radius, radius), radius)
+
+        if isinstance(color, pygame.Surface):
+            self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(self.image, (255, 255, 255, 255), (radius, radius), radius)
+            self.image.blit(color, (0, 0), special_flags=pygame.BLEND_RGBA_MIN)
+        else:
+            self.image = pygame.Surface((radius * 2, radius * 2), pygame.SRCALPHA)
+            pygame.draw.circle(self.image, color, (radius, radius), radius)
+
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
-        
-        
 
+class Buttom_Gm:
+    def __init__(self, x, y, width, height, text, color_btn) -> None:
+        self.rect: pygame.Rect = pygame.Rect(x, y, width, height)
+        self.text: str = text
+        self.color_btn = color_btn
+        self.font = pygame.font.SysFont("arial", 24, bold=True)
+        
+    def draw(self, screen):
+        draw_rect: pygame.Rect = self.rect.copy()
+        pygame.draw.rect(
+            screen,
+            self.color_btn,
+            draw_rect,
+            border_radius=12,
+        )
+        
+        text_btn: pygame.Surface = self.font.render(self.text, True, (255, 255, 255))
+        text_rect = text_btn.get_rect()
+        text_rect.center = self.rect.center
+        
+        screen.blit(text_btn, text_rect)
 
 class GraphRenderer:
     def __init__(self, map_data) -> None:
 
         self.screen: pygame.Surface = pygame.display.set_mode((2832, 1504))
-
-        icon = pygame.image.load("assets/icon.png").convert_alpha()
+        self.rainbow_texture = pygame.image.load("assets/rainbow.jpg").convert_alpha()
+        icon: pygame.Surface = pygame.image.load("assets/icon.png").convert_alpha()
         pygame.display.set_icon(icon)
 
         pygame.display.set_caption("Fly_In")
 
-
         self.all_sprites = pygame.sprite.Group()
         self.map_data = map_data
         self.dict_x, self.dict_y = self.calcul_nb_xy()
+        self.infos_hub = {}
         pygame.init()
 
         bigx = max(self.dict_x.values())
@@ -76,7 +137,31 @@ class GraphRenderer:
         line = bigy - y_start
         pos_starty = (line * posy) + (posy / 2)
 
-        hub_start = VisualNode(pos_startx, pos_starty, self.map_data.glb_start.color, self.dict_x, self.dict_y, base_radius, self.map_data.glb_start.max_drones)
+
+        #calul taille hub pour rainbow
+        percentage = 50 + (self.map_data.glb_start.max_drones - 1) * 5.5
+        theoretical_radius = math.ceil((base_radius * 0.8) * percentage / 100)
+        maximum_allowed_radius = math.ceil(base_radius * 0.9)
+        radius_start = min(theoretical_radius, maximum_allowed_radius)
+        diameter_start = radius_start * 2
+
+        # ### Gestion des couleurs
+        color_start = self.map_data.glb_start.color
+        if color_start == "rainbow":
+            rgb_start = pygame.transform.smoothscale(self.rainbow_texture, (diameter_start, diameter_start))
+        else:
+            try:
+                color_enum = HubColor[color_start.upper()]
+                rgb_start = color_enum.rgb
+            except KeyError:
+                rgb_start = (255, 255, 255)
+
+        self.infos_hub[self.map_data.glb_start.name] = (pos_startx, pos_starty)
+        hub_start = VisualNode(pos_startx, pos_starty,
+                               rgb_start,
+                               self.dict_x, self.dict_y,
+                               base_radius,
+                               self.map_data.glb_start.max_drones)
         self.all_sprites.add(hub_start)
 
         # ### END HUB
@@ -89,7 +174,26 @@ class GraphRenderer:
         line = bigy - y_end
         pos_endy = (line * posy) + (posy / 2)
 
-        hub_end = VisualNode(pos_endx, pos_endy, self.map_data.glb_end.color, self.dict_x, self.dict_y, base_radius, self.map_data.glb_end.max_drones)
+        # ### Gestion des couleurs
+        radius_end = min(theoretical_radius, maximum_allowed_radius)
+        diameter_end = radius_end * 2
+        
+        color_end = self.map_data.glb_end.color
+        if color_end == "rainbow":
+            rgb_end = pygame.transform.smoothscale(self.rainbow_texture, (diameter_end, diameter_end))
+        else:
+            try:
+                color_enum = HubColor[color_end.upper()]
+                rgb_end = color_enum.rgb
+            except KeyError:
+                rgb_end = (255, 255, 255)
+
+        self.infos_hub[self.map_data.glb_end.name] = (pos_endx, pos_endy)
+        hub_end = VisualNode(pos_endx, pos_endy,
+                             rgb_end,
+                             self.dict_x, self.dict_y,
+                             base_radius,
+                             self.map_data.glb_end.max_drones)
         self.all_sprites.add(hub_end)
 
         # ### OTHER HUB
@@ -100,13 +204,36 @@ class GraphRenderer:
 
             line = bigy - hub.y
             pos_huby = (line * posy) + (posy / 2)
-
-            hub = VisualNode(pos_hubx, pos_huby, hub.color, self.dict_x, self.dict_y, base_radius, hub.max_drones)
+            self.infos_hub[hub.name] = (pos_hubx, pos_huby)
+            
+            # ### Gestion des couleurs
+            radius_hub = min(theoretical_radius, maximum_allowed_radius)
+            diameter_hub = radius_hub * 2
+        
+            color_hub = hub.color
+            if color_hub == "rainbow":
+                rgb_hub = pygame.transform.smoothscale(self.rainbow_texture, (diameter_hub, diameter_hub))
+            else:
+                try:
+                    color_enum = HubColor[color_hub.upper()]
+                    rgb_hub = color_enum.rgb
+                except KeyError:
+                    rgb_hub = (255, 255, 255)
+            
+            hub = VisualNode(pos_hubx, pos_huby, rgb_hub,
+                             self.dict_x, self.dict_y,
+                             base_radius, hub.max_drones)
             self.all_sprites.add(hub)
 
     def draw_connections(self, surface):
-        pygame.draw.line(self.screen, (255, 255, 255), (100, 100), (2000, 100), 10)
-    
+        for c in self.map_data.glb_connection:
+            startx = self.infos_hub[c.connection_a][0]
+            starty = self.infos_hub[c.connection_a][1]
+            endx = self.infos_hub[c.connection_b][0]
+            endy = self.infos_hub[c.connection_b][1]
+            pygame.draw.line(self.screen, (255, 255, 255),
+                             (startx, starty), (endx, endy), 5)
+
     def calcul_nb_xy(self) -> tuple[dict, dict]:
         dict_y: dict = {}
         dict_x: dict = {}
