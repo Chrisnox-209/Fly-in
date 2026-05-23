@@ -20,11 +20,11 @@ clean:
 
 lint:
 	@uv run python3 -m mypy . $(MYPY_FLAGS)
-	@uv run python3 -m flake8 .
+	@uv run python3 -m flake8 --exclude .venv .
 
 lint-strict:
 	@uv run python3 -m mypy .  $(MYPY_FLAGS) $(MYPY_STRICT)
-	@uv run python3 -m flake8 . $(LAKE_STRICT)
+	@uv run python3 -m flake8 --exclude .venv . $(LAKE_STRICT)
 
 debug:
 	@uv run python3 -m pdb $(MAIN)

@@ -1,7 +1,7 @@
+import cv2  # type: ignore[import-untyped, unused-ignore]
 import os
 import sys
 from typing import Any, Optional
-import cv2  # type: ignore
 import pygame
 from pygame.font import Font
 

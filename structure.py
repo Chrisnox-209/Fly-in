@@ -3,7 +3,7 @@ from typing import Optional
 
 class Node:
     def __init__(self, name: str, id: int, x: int, y: int,
-                 nb_line: int, color=None,
+                 nb_line: int, color: Optional[str] = None,
                  max_drones: int = 1, zone: str = "normal") -> None:
         self.name: str = name
         self.id: int = id
@@ -37,7 +37,7 @@ class Drone:
 
 class Connection:
     def __init__(self, connection_a: str, connection_b: str,
-                 nb_line: int, max_link_capacity=1) -> None:
+                 nb_line: int, max_link_capacity: int = 1) -> None:
         self.connection_a: str = connection_a
         self.connection_b: str = connection_b
         self.nb_line: int = nb_line
