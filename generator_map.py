@@ -80,6 +80,19 @@ class VisualNode(pygame.sprite.Sprite):
         self.rect.center = (x, y)
 
 
+class VisualDrone(pygame.sprite.Sprite):
+    def __init__(self, x: int, y: int, img_drone: str,
+                 dict_x: dict[str, int], dict_y: dict[str, int]):
+        super().__init__()
+        self.dict_x: dict[str, int] = dict_x
+        self.dict_y: dict[str, int] = dict_y
+        self.image: pygame.Surface = pygame.image.load(
+            "assets/bird.gif").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (100, 100))
+        self.rect = self.image.get_rect()
+        self.rect.center = (x, y)
+
+
 class Buttom_Gm:
     def __init__(self, x: int, y: int, width: int,
                  height: int, text: str, color_btn: Any) -> None:
@@ -113,15 +126,16 @@ class GraphRenderer:
         icon: pygame.Surface = pygame.image.load(
             "assets/icon.png").convert_alpha()
         pygame.display.set_icon(icon)
-
         pygame.display.set_caption("Fly_In")
 
         self.dict_x: dict[str, int]
         self.dict_y: dict[str, int]
         self.all_sprites: Group[VisualNode] = pygame.sprite.Group()
+        self.drones_sprites: Group[VisualDrone] = pygame.sprite.Group()
         self.map_data: Any = map_data
         self.dict_x, self.dict_y = self.calcul_nb_xy()
         self.infos_hub: dict[str, tuple[int, int]] = {}
+
         pygame.init()
 
         bigx: Any = max(self.dict_x.values())
@@ -252,6 +266,9 @@ class GraphRenderer:
             endy: Any = self.infos_hub[c.connection_b][1]
             pygame.draw.line(self.screen, (255, 255, 255),
                              (startx, starty), (endx, endy), 5)
+
+    def draw_drones(self, surface: pygame.Surface) -> None:
+        self.drones_sprites.draw(surface)
 
     def calcul_nb_xy(self) -> tuple[dict[str, int], dict[str, int]]:
         dict_y: dict[str, int] = {}
