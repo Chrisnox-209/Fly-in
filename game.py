@@ -4,8 +4,8 @@ from pygame.event import Event
 from pygame.font import Font
 from menu import Menu
 from parser import Global, ParseMaps
-from typing import Any, List, NoReturn
-from generator_map import GraphRenderer,Buttom_Gm
+from typing import List, NoReturn
+from generator_map import GraphRenderer, Buttom_Gm
 
 
 class SimpleGame:
@@ -14,24 +14,29 @@ class SimpleGame:
         self.map_path: str = map_path
         self.font: Font = pygame.font.SysFont("arial", 80, bold=True)
 
-        self.font_btn = pygame.font.SysFont("arial", 40, bold=True)
-        self.return_btn = Buttom_Gm(190, 1300, 90, 90, "⌂", (50, 50, 200))
+        self.font_btn: Font = pygame.font.SysFont("arial", 40, bold=True)
+        self.return_btn: Buttom_Gm = Buttom_Gm(
+            10, 10, 90, 90, "MENU", (50, 50, 50))
+        self.quit_btn: Buttom_Gm = Buttom_Gm(
+            110, 10, 90, 90, "EXIT", (50, 50, 50))
+        self.renderer: GraphRenderer = GraphRenderer(self.game_map)
 
-        self.renderer: GraphRenderer[Global] = GraphRenderer(self.game_map)
-
-    def update(self, events) -> None:
+    def update(self, events: list[pygame.event.Event]) -> str | None:
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if self.return_btn.rect.collidepoint(event.pos):
                     return "MENU"
+                if self.quit_btn.rect.collidepoint(event.pos):
+                    pygame.quit()
+                    sys.exit()
         return None
 
-    def draw(self, screen) -> None:
-
+    def draw(self, screen: pygame.Surface) -> None:
         screen.fill((100, 100, 100))
-        self.return_btn.draw(screen)
         self.renderer.draw_connections(screen)
         self.renderer.all_sprites.draw(screen)
+        self.return_btn.draw(screen)
+        self.quit_btn.draw(screen)
 
 
 class GameApp:
@@ -81,7 +86,7 @@ class GameApp:
 
             elif self.state == "GAME":
                 if self.game is not None:
-                    next_state = self.game.update(events)
+                    next_state: str | None = self.game.update(events)
                     if next_state == "MENU":
                         self.state = "MENU"
                     self.game.draw(self.screen)
