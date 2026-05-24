@@ -3,7 +3,9 @@ import math
 from pygame.sprite import Group
 from typing import Any, cast
 import warnings
+import random
 from enum import Enum
+
 
 from pygame.font import Font
 warnings.filterwarnings(
@@ -81,16 +83,48 @@ class VisualNode(pygame.sprite.Sprite):
 
 
 class VisualDrone(pygame.sprite.Sprite):
-    def __init__(self, x: int, y: int, img_drone: str,
-                 dict_x: dict[str, int], dict_y: dict[str, int]):
+    def __init__(self, x: int, y: int,
+                 dict_x: dict[str, int], dict_y: dict[str, int]) -> None:
         super().__init__()
+        drone_images: list[list[str]] = [
+            ["assets/gold-1.png", "assets/gold-2.png",
+             "assets/gold-3.png", "assets/gold-4.png"],
+            ["assets/red-1.png", "assets/red-2.png",
+             "assets/red-3.png", "assets/red-4.png"],
+            ["assets/blue-1.png", "assets/blue-2.png",
+             "assets/blue-3.png", "assets/blue-4.png"],
+            ["assets/green-1.png", "assets/green-2.png",
+             "assets/green-3.png", "assets/green-4.png"],
+            ["assets/yellow-1.png", "assets/yellow-2.png",
+             "assets/yellow-3.png", "assets/yellow-4.png"],
+        ]
         self.dict_x: dict[str, int] = dict_x
         self.dict_y: dict[str, int] = dict_y
-        self.image: pygame.Surface = pygame.image.load(
-            "assets/bird.gif").convert_alpha()
-        self.image = pygame.transform.scale(self.image, (100, 100))
+
+        my_drone_paths = random.choice(drone_images)
+        self.sprites = []
+        for path in my_drone_paths:
+            img = pygame.image.load(path).convert_alpha()
+            self.sprites.append(img)
+
+        self.current_sprite = 0
+        self.animation_speed = 0.6
+        self.flight_animations = 1.9
+        self.stationary_animations = 1
+        
+
+        self.image = self.sprites[self.current_sprite]
         self.rect = self.image.get_rect()
         self.rect.center = (x, y)
+
+    def update(self):
+
+        self.current_sprite += self.animation_speed
+
+        if int(self.current_sprite) >= len(self.sprites):
+            self.current_sprite = 0
+    
+        self.image = self.sprites[int(self.current_sprite)]
 
 
 class Buttom_Gm:
