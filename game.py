@@ -28,6 +28,8 @@ class SimpleGame:
                                  self.renderer.dict_x, self.renderer.dict_y)
         self.renderer.drones_sprites.add(test_drone)
 
+        # test_drone.set_target(prochain_x, prochain_y)
+
     def update(self, events: list[pygame.event.Event]) -> str | None:
         self.renderer.drones_sprites.update()
         
@@ -46,7 +48,7 @@ class SimpleGame:
         self.renderer.draw_connections(screen)
         self.renderer.all_sprites.draw(screen)
         self.renderer.drones_sprites.draw(screen)
-
+        
         self.return_btn.draw(screen)
         self.quit_btn.draw(screen)
 

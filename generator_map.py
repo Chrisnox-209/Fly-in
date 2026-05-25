@@ -115,16 +115,35 @@ class VisualDrone(pygame.sprite.Sprite):
 
         self.image = self.sprites[self.current_sprite]
         self.rect = self.image.get_rect()
-        self.rect.center = (x, y)
+
+        self.x = float(x)
+        self.y = float(y)
+        self.rect.center = (self.x, self.y)
+
+        self.angle = 270
+
+    def set_target(self, target_x: float, target_y: float):
+        dx = target_x - self.x
+        dy = target_y - self.y       
+
+        self.angle = math.degrees(math.atan2(-dy, dx))
 
     def update(self):
 
         self.current_sprite += self.animation_speed
-
         if int(self.current_sprite) >= len(self.sprites):
             self.current_sprite = 0
+
+        original_image = self.sprites[int(self.current_sprite)]
+        self.image = pygame.transform.rotate(original_image, self.angle)
+        self.rect = self.image.get_rect(center=(self.x, self.y))
+
+        # self.current_sprite += self.animation_speed
+
+        # if int(self.current_sprite) >= len(self.sprites):
+        #     self.current_sprite = 0
     
-        self.image = self.sprites[int(self.current_sprite)]
+        # self.image = self.sprites[int(self.current_sprite)]
 
 
 class Buttom_Gm:
