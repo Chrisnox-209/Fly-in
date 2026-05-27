@@ -46,8 +46,6 @@ class TrafficController:
             if c.connection_b in self.address_book:
                 self.address_book[c.connection_b].add(c.connection_a)
 
-        self.find_path()
-
     @staticmethod
     def score(xa: int, ya: int, xb: int, yb: int) -> float:
         result = math.sqrt(
@@ -55,16 +53,37 @@ class TrafficController:
         return result
 
     def find_path(self) -> None:
-        waiting_list: list = [self.start]
+        waiting_list: list = []
         origin: dict = {self.start: None}
+        g_score: dict = {self.start: 0}
+        heapq.heappush(waiting_list, (0, self.start))
+        end_position: tuple[int, int] = (self.map_data.glb_end.x,
+                                         self.map_data.glb_end.y)
 
         while waiting_list:
 
-            if waiting_list != []:
-                hub: str = waiting_list[0]
+            score: int
+            hub: str
+            score, hub = heapq.heappop(waiting_list)
+
+            if hub == self.end:
+                break
+
             if hub in self.address_book:
-                for h in self.address_book[hub]:
-                    waiting_list.append(h)
-                origin[hub] = True
-                origin[h] = None
-                waiting_list.remove(hub)
+                for hub_next in self.address_book[hub]:
+                    g_current = g_score[hub] + 1
+                    if (hub_next not in g_score
+                       or g_current < g_score[hub_next]):
+                        g_score[hub_next] = g_current
+                        origin[hub_next] = hub
+
+                        hub_position: tuple = (self.hub_details[hub_next][-2],
+                                               self.hub_details[hub_next][-1])
+                        score_h: float = self.score(
+                            hub_position[0],
+                            hub_position[1],
+                            end_position[0],
+                            end_position[1])
+                        score_f: Any = g_current + score_h
+                        heapq.heappush(waiting_list, (score_f, hub_next))
+
