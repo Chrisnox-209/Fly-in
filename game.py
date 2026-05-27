@@ -5,8 +5,9 @@ from pygame.font import Font
 from menu import Menu
 from parser import Global, ParseMaps
 from typing import List, NoReturn, Any
-from generator_map import GraphRenderer, Buttom_Gm, VisualDrone
+from generator_map import GraphRenderer, Buttom_Gm, VisualDrone, VisualNode
 from solver import TrafficController
+
 
 class SimpleGame:
     def __init__(self, game_map: Global, map_path: str) -> None:
@@ -24,7 +25,7 @@ class SimpleGame:
         start_y: Any
         start_name: str = self.game_map.glb_start.name
         start_x, start_y = self.renderer.infos_hub[start_name]
-        node: None = self.renderer.nodes.get(start_name)
+        node: VisualNode | None = self.renderer.nodes.get(start_name)
         if node is None:
             raise ValueError(f"Node {start_name} introuvable")
 
