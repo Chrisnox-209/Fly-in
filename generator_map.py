@@ -229,7 +229,10 @@ class GraphRenderer:
                 self.rainbow_texture, (diameter_start, diameter_start))
         else:
             try:
-                color_enum: HubColor = HubColor[color_start.upper()]
+                if color_start is None:
+                    color_enum: HubColor = HubColor.GREY
+                else:
+                    color_enum = HubColor[color_start.upper()]
                 rgb_start = color_enum.rgb
             except KeyError:
                 rgb_start = (255, 255, 255)
@@ -266,7 +269,10 @@ class GraphRenderer:
                 self.rainbow_texture, (diameter_end, diameter_end))
         else:
             try:
-                color_enum = HubColor[color_end.upper()]
+                if color_end is None:
+                    color_enum = HubColor.GREY
+                else:
+                    color_enum = HubColor[color_end.upper()]
                 rgb_end = color_enum.rgb
             except KeyError:
                 rgb_end = (255, 255, 255)
@@ -304,7 +310,10 @@ class GraphRenderer:
                     self.rainbow_texture, (diameter_hub, diameter_hub))
             else:
                 try:
-                    color_enum = HubColor[color_hub.upper()]
+                    if color_hub is None:
+                        color_enum = HubColor.GREY
+                    else:
+                        color_enum = HubColor[color_hub.upper()]
                     rgb_hub = color_enum.rgb
                 except KeyError:
                     rgb_hub = (255, 255, 255)

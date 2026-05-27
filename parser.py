@@ -207,7 +207,7 @@ class ParseMaps():
 
             option: str = (
                 string[string.index("[") + 1: string.index("]")].strip())
-            if len(option.split()) < 1 and len(option.split()) > 3:
+            if len(option.split()) < 1 or len(option.split()) > 3:
                 raise ValueError("[HUB] Invalid format option "
                                  f"line → {line}")
             for item in option.split():
@@ -247,6 +247,7 @@ class ParseMaps():
 
             hub = type_obj(
                 name=data_list[0],
+                id=id,
                 x=x,
                 y=y,
                 nb_line=line
