@@ -38,7 +38,7 @@ class HubColor(Enum):
     @property
     def rgb(self) -> pygame.Color | tuple[int, int, int]:
         if self == HubColor.RAINBOW:
-            teinte = (pygame.time.get_ticks() // 10) % 360
+            teinte: int = (pygame.time.get_ticks() // 10) % 360
             couleur = pygame.Color(0)
             couleur.hsva = (teinte, 100, 100, 100)
             return couleur
@@ -46,12 +46,13 @@ class HubColor(Enum):
 
 
 class VisualNode(pygame.sprite.Sprite):
-    def __init__(self, x: int, y: int, color: Any,
+    def __init__(self, x: int, y: int, name: str, color: Any,
                  dict_x: dict[str, int], dict_y: dict[str, int],
                  base_radius: float, capacity_drones: int) -> None:
         super().__init__()
         self.dict_x: dict[str, int] = dict_x
         self.dict_y: dict[str, int] = dict_y
+        self.name: str = name
 
         # 1. On calcule le pourcentage d'agrandissement
         percentage: float = 50 + (capacity_drones - 1) * 5.5
@@ -66,7 +67,7 @@ class VisualNode(pygame.sprite.Sprite):
         # pour que les cercles ne se touchent jamais)
         maximum_allowed_radius: Any = math.ceil(base_radius * 0.9)
         radius: Any | Any = min(theoretical_radius, maximum_allowed_radius)
-
+        self.radius: Any = radius
         if isinstance(color, pygame.Surface):
             self.image = pygame.Surface((
                 radius * 2, radius * 2), pygame.SRCALPHA)
@@ -84,7 +85,9 @@ class VisualNode(pygame.sprite.Sprite):
 
 class VisualDrone(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int,
-                 dict_x: dict[str, int], dict_y: dict[str, int]) -> None:
+                 dict_x: dict[str, int],
+                 dict_y: dict[str, int],
+                 radius: int) -> None:
         super().__init__()
         drone_images: list[list[str]] = [
             ["assets/gold-1.png", "assets/gold-2.png",
@@ -100,50 +103,45 @@ class VisualDrone(pygame.sprite.Sprite):
         ]
         self.dict_x: dict[str, int] = dict_x
         self.dict_y: dict[str, int] = dict_y
+        self.radius: int = radius
+        my_drone_paths: list[str] = random.choice(drone_images)
+        self.sprites: list[pygame.Surface] = []
 
-        my_drone_paths = random.choice(drone_images)
-        self.sprites = []
+        width: int = self.radius
+        height: float = self.radius / 1.21
         for path in my_drone_paths:
-            img = pygame.image.load(path).convert_alpha()
+            img: pygame.Surface = pygame.image.load(path).convert_alpha()
+            img = pygame.transform.scale(img, (width, height))
             self.sprites.append(img)
 
-        self.current_sprite = 0
-        self.animation_speed = 0.6
-        self.flight_animations = 1.9
-        self.stationary_animations = 1
-        
+        self.current_sprite: float = 0
+        self.animation_speed: float = 0.6
+        self.flight_animations: float = 1.9
+        self.stationary_animations: float = 1
 
-        self.image = self.sprites[self.current_sprite]
-        self.rect = self.image.get_rect()
+        self.image: Any = self.sprites[self.current_sprite]
+        self.rect: Any = self.image.get_rect()
 
         self.x = float(x)
         self.y = float(y)
-        self.rect.center = (self.x, self.y)
+        self.rect.center = (int(self.x), int(self.y))
 
-        self.angle = 270
+        self.angle: float = 270
 
-    def set_target(self, target_x: float, target_y: float):
-        dx = target_x - self.x
-        dy = target_y - self.y       
+    def set_target(self, target_x: float, target_y: float) -> None:
+        dx: float = target_x - self.x
+        dy: float = target_y - self.y
 
         self.angle = math.degrees(math.atan2(-dy, dx))
 
-    def update(self):
-
+    def update(self) -> None:
         self.current_sprite += self.animation_speed
         if int(self.current_sprite) >= len(self.sprites):
             self.current_sprite = 0
 
-        original_image = self.sprites[int(self.current_sprite)]
+        original_image: Any = self.sprites[int(self.current_sprite)]
         self.image = pygame.transform.rotate(original_image, self.angle)
         self.rect = self.image.get_rect(center=(self.x, self.y))
-
-        # self.current_sprite += self.animation_speed
-
-        # if int(self.current_sprite) >= len(self.sprites):
-        #     self.current_sprite = 0
-    
-        # self.image = self.sprites[int(self.current_sprite)]
 
 
 class Buttom_Gm:
@@ -172,7 +170,7 @@ class Buttom_Gm:
 
 class GraphRenderer:
     def __init__(self, map_data: Any) -> None:
-
+        pygame.init()
         self.screen: pygame.Surface = pygame.display.set_mode((2832, 1504))
         self.rainbow_texture: pygame.Surface = pygame.image.load(
             "assets/rainbow.jpg").convert_alpha()
@@ -188,8 +186,7 @@ class GraphRenderer:
         self.map_data: Any = map_data
         self.dict_x, self.dict_y = self.calcul_nb_xy()
         self.infos_hub: dict[str, tuple[int, int]] = {}
-
-        pygame.init()
+        self.nodes: dict[str, VisualNode] = {}
 
         bigx: Any = max(self.dict_x.values())
         smallx: Any = min(self.dict_x.values())
@@ -199,8 +196,8 @@ class GraphRenderer:
         gird_x: Any | Any = abs(bigx - smallx) + 1
         gird_y: Any | Any = abs(bigy - smally) + 1
 
-        posx: Any | Any = 2832 / gird_x
-        posy: Any | Any = 1504 / gird_y
+        posx: float = 2832 / gird_x
+        posy: float = 1504 / gird_y
 
         pos_min: Any | Any = min(posx, posy)
         base_radius: Any | Any = pos_min / 2
@@ -210,10 +207,10 @@ class GraphRenderer:
         y_start: Any = self.map_data.glb_start.y
 
         colonne: Any | Any = x_start - smallx
-        pos_startx: Any | Any = (colonne * posx) + (posx / 2)
+        pos_startx = (colonne * posx) + (posx // 2)
 
         line: Any | Any = bigy - y_start
-        pos_starty: Any | Any = (line * posy) + (posy / 2)
+        pos_starty = (line * posy) + (posy // 2)
 
         # calul taille hub pour rainbow
         percentage: Any = 50 + (self.map_data.glb_start.max_drones - 1) * 5.5
@@ -237,23 +234,26 @@ class GraphRenderer:
             except KeyError:
                 rgb_start = (255, 255, 255)
 
-        self.infos_hub[self.map_data.glb_start.name] = (pos_startx, pos_starty)
+        self.infos_hub[self.map_data.glb_start.name] = (int(pos_startx),
+                                                        int(pos_starty))
         hub_start = VisualNode(pos_startx, pos_starty,
+                               self.map_data.glb_start.name,
                                rgb_start,
                                self.dict_x, self.dict_y,
                                base_radius,
                                self.map_data.glb_start.max_drones)
         self.all_sprites.add(hub_start)
+        self.nodes[self.map_data.glb_start.name] = hub_start
 
         # ### END HUB
         x_end: Any = self.map_data.glb_end.x
         y_end: Any = self.map_data.glb_end.y
 
         colonne = x_end - smallx
-        pos_endx: Any | Any = (colonne * posx) + (posx / 2)
+        pos_endx = (colonne * posx) + (posx // 2)
 
         line = bigy - y_end
-        pos_endy: Any | Any = (line * posy) + (posy / 2)
+        pos_endy = (line * posy) + (posy // 2)
 
         # ### Gestion des couleurs
         radius_end: Any | Any = min(theoretical_radius, maximum_allowed_radius)
@@ -271,23 +271,26 @@ class GraphRenderer:
             except KeyError:
                 rgb_end = (255, 255, 255)
 
-        self.infos_hub[self.map_data.glb_end.name] = (pos_endx, pos_endy)
+        self.infos_hub[self.map_data.glb_end.name] = (int(pos_endx),
+                                                      int(pos_endy))
         hub_end = VisualNode(pos_endx, pos_endy,
+                             self.map_data.glb_end.name,
                              rgb_end,
                              self.dict_x, self.dict_y,
                              base_radius,
                              self.map_data.glb_end.max_drones)
         self.all_sprites.add(hub_end)
+        self.nodes[self.map_data.glb_end.name] = hub_end
 
         # ### OTHER HUB
 
         for hub in self.map_data.glb_hub:
             colonne = hub.x - smallx
-            pos_hubx: Any | Any = (colonne * posx) + (posx / 2)
+            pos_hubx = (colonne * posx) + (posx // 2)
 
             line = bigy - hub.y
-            pos_huby: Any | Any = (line * posy) + (posy / 2)
-            self.infos_hub[hub.name] = (pos_hubx, pos_huby)
+            pos_huby = (line * posy) + (posy // 2)
+            self.infos_hub[hub.name] = (int(pos_hubx), int(pos_huby))
 
             # ### Gestion des couleurs
             radius_hub: Any | Any = min(theoretical_radius,
@@ -306,10 +309,12 @@ class GraphRenderer:
                 except KeyError:
                     rgb_hub = (255, 255, 255)
 
-            hub = VisualNode(pos_hubx, pos_huby, rgb_hub,
-                             self.dict_x, self.dict_y,
-                             base_radius, hub.max_drones)
-            self.all_sprites.add(hub)
+            visual_hub = VisualNode(pos_hubx, pos_huby, hub.name,
+                                    rgb_hub,
+                                    self.dict_x, self.dict_y,
+                                    base_radius, hub.max_drones)
+            self.all_sprites.add(visual_hub)
+            self.nodes[hub.name] = visual_hub
 
     def draw_connections(self, surface: Any) -> None:
         for c in self.map_data.glb_connection:
@@ -317,8 +322,10 @@ class GraphRenderer:
             starty: Any = self.infos_hub[c.connection_a][1]
             endx: Any = self.infos_hub[c.connection_b][0]
             endy: Any = self.infos_hub[c.connection_b][1]
-            pygame.draw.line(self.screen, (255, 255, 255),
-                             (startx, starty), (endx, endy), 5)
+            pygame.draw.line(surface,
+                             (255, 255, 255),
+                             (startx, starty),
+                             (endx, endy), 5)
 
     def draw_drones(self, surface: pygame.Surface) -> None:
         self.drones_sprites.draw(surface)

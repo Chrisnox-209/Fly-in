@@ -4,9 +4,9 @@ from pygame.event import Event
 from pygame.font import Font
 from menu import Menu
 from parser import Global, ParseMaps
-from typing import List, NoReturn
+from typing import List, NoReturn, Any
 from generator_map import GraphRenderer, Buttom_Gm, VisualDrone
-
+from solver import TrafficController
 
 class SimpleGame:
     def __init__(self, game_map: Global, map_path: str) -> None:
@@ -20,19 +20,25 @@ class SimpleGame:
         self.quit_btn: Buttom_Gm = Buttom_Gm(
             110, 10, 90, 90, "EXIT", (50, 50, 50))
         self.renderer: GraphRenderer = GraphRenderer(self.game_map)
-
-        start_name = self.game_map.glb_start.name
+        start_x: Any
+        start_y: Any
+        start_name: str = self.game_map.glb_start.name
         start_x, start_y = self.renderer.infos_hub[start_name]
+        node: None = self.renderer.nodes.get(start_name)
+        if node is None:
+            raise ValueError(f"Node {start_name} introuvable")
 
         test_drone = VisualDrone(start_x, start_y,
-                                 self.renderer.dict_x, self.renderer.dict_y)
+                                 self.renderer.dict_x, self.renderer.dict_y,
+                                 node.radius)
         self.renderer.drones_sprites.add(test_drone)
 
+        tour = TrafficController(game_map)
         # test_drone.set_target(prochain_x, prochain_y)
 
     def update(self, events: list[pygame.event.Event]) -> str | None:
         self.renderer.drones_sprites.update()
-        
+
         for event in events:
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if self.return_btn.rect.collidepoint(event.pos):
@@ -48,7 +54,7 @@ class SimpleGame:
         self.renderer.draw_connections(screen)
         self.renderer.all_sprites.draw(screen)
         self.renderer.drones_sprites.draw(screen)
-        
+
         self.return_btn.draw(screen)
         self.quit_btn.draw(screen)
 
