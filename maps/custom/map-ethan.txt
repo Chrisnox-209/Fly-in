@@ -1,0 +1,120 @@
+# ==========================================
+# MAP: THE LEVIATHAN COMPLEX
+# COMPLEXITY: EXTREME
+# ==========================================
+nb_drones: 50
+
+start_hub: alpha_base 0 10 [color=blue max_drones=50]
+end_hub: omega_core 30 10 [color=cyan max_drones=50]
+
+# --- LAYER 1: The Splitters ---
+hub: split_top 3 16 [max_drones=10]
+hub: split_mid 3 10 [max_drones=10]
+hub: split_bot 3 4 [max_drones=10]
+
+# --- LAYER 2: The Gates ---
+hub: gate_n 7 18 [zone=priority color=yellow max_drones=2]
+hub: gate_n_mid 7 14 [max_drones=3]
+hub: gate_c 7 10 [max_drones=3]
+hub: gate_s_mid 7 6 [max_drones=3]
+hub: gate_s 7 2 [zone=restricted color=brown max_drones=15]
+
+# --- LAYER 3: The Dense Web ---
+# Points très rapprochés pour multiplier les options de contournement
+hub: web_1 12 18 [max_drones=2]
+hub: web_2 12 14 [max_drones=2]
+hub: web_3 12 10 [zone=priority color=yellow max_drones=1]
+hub: web_4 12 6 [max_drones=2]
+hub: web_5 12 2 [max_drones=6]
+
+# Obstacles pour casser les lignes droites
+hub: block_1 10 12 [zone=blocked color=black]
+hub: block_2 10 8 [zone=blocked color=black]
+
+# --- LAYER 4: The Trench ---
+# Alternance vicieuse entre priorité (minuscule) et restriction (massive)
+hub: trench_1 17 18 [zone=restricted color=orange max_drones=4]
+hub: trench_2 17 14 [zone=priority color=yellow max_drones=1]
+hub: trench_3 17 10 [zone=restricted color=orange max_drones=8]
+hub: trench_4 17 6 [zone=priority color=yellow max_drones=1]
+hub: trench_5 17 2 [zone=restricted color=orange max_drones=10]
+
+# --- LAYER 5: The Filter & The Trap ---
+hub: filter_1 22 16 [max_drones=3]
+hub: filter_2 22 10 [max_drones=4]
+hub: filter_3 22 4 [max_drones=3]
+
+# Le Piège : Un cul-de-sac séduisant près de l'arrivée
+hub: trap_deadend 22 13 [color=magenta max_drones=5]
+
+# --- LAYER 6: The Final Choke ---
+# Deux portes extrêmement lentes et petites avant la victoire
+hub: choke_top 26 12 [zone=restricted color=red max_drones=2]
+hub: choke_bot 26 8 [zone=restricted color=red max_drones=2]
+
+# ==========================================
+# CONNECTIONS
+# ==========================================
+
+# Alpha -> Splitters
+connection: alpha_base-split_top [max_link_capacity=5]
+connection: alpha_base-split_mid [max_link_capacity=5]
+connection: alpha_base-split_bot [max_link_capacity=5]
+
+# Interconnexions des splitters (permet d'équilibrer la charge)
+connection: split_top-split_mid [max_link_capacity=3]
+connection: split_mid-split_bot [max_link_capacity=3]
+
+# Splitters -> Gates
+connection: split_top-gate_n [max_link_capacity=2]
+connection: split_top-gate_n_mid
+connection: split_mid-gate_n_mid
+connection: split_mid-gate_c [max_link_capacity=3]
+connection: split_mid-gate_s_mid
+connection: split_bot-gate_s_mid
+connection: split_bot-gate_s [max_link_capacity=10]
+
+# Gates -> Web (ZigZags multiples)
+connection: gate_n-web_1
+connection: gate_n_mid-web_1
+connection: gate_n_mid-web_2
+connection: gate_c-web_2
+connection: gate_c-web_3 [max_link_capacity=1]
+connection: gate_c-web_4
+connection: gate_s_mid-web_4
+connection: gate_s_mid-web_5
+connection: gate_s-web_5 [max_link_capacity=5]
+
+# Interconnexions Web (Le chaos central)
+connection: web_1-web_2
+connection: web_2-web_3
+connection: web_3-web_4
+connection: web_4-web_5
+
+# Web -> Trench
+connection: web_1-trench_1 [max_link_capacity=3]
+connection: web_2-trench_2 [max_link_capacity=1]
+connection: web_2-trench_3
+connection: web_3-trench_3 [max_link_capacity=2]
+connection: web_4-trench_3
+connection: web_4-trench_4 [max_link_capacity=1]
+connection: web_5-trench_5 [max_link_capacity=5]
+
+# Trench -> Filter
+connection: trench_1-filter_1 [max_link_capacity=2]
+connection: trench_2-filter_1
+connection: trench_3-filter_2 [max_link_capacity=4]
+connection: trench_4-filter_3
+connection: trench_5-filter_3 [max_link_capacity=4]
+connection: trench_1-trap_deadend [max_link_capacity=2]
+connection: trench_2-trap_deadend [max_link_capacity=2]
+
+# Filter -> Choke
+connection: filter_1-choke_top [max_link_capacity=2]
+connection: filter_2-choke_top [max_link_capacity=2]
+connection: filter_2-choke_bot [max_link_capacity=2]
+connection: filter_3-choke_bot [max_link_capacity=2]
+
+# Choke -> Omega
+connection: choke_top-omega_core [max_link_capacity=5]
+connection: choke_bot-omega_core [max_link_capacity=5]
