@@ -6,17 +6,10 @@ import heapq
 class TrafficController:
     def __init__(self, map_data: Any) -> None:
         self.map_data: Any = map_data
-
-        drones: int = map_data.glb_drones.nb_drone
-        self.pos_drones: dict = {}
         self.hub_details: dict = {}
         self.address_book: dict = {}
         self.start: str = map_data.glb_start.name
         self.end: str = map_data.glb_end.name
-
-        for i in range(drones):
-            number_drone: Any = "D" + str(i)
-            self.pos_drones[number_drone] = map_data.glb_start.name
 
         self.hub_details[map_data.glb_start.name] = (
             map_data.glb_start.max_drones,
@@ -48,30 +41,37 @@ class TrafficController:
 
     @staticmethod
     def score(xa: int, ya: int, xb: int, yb: int) -> float:
-        result = math.sqrt(
+        result: float = math.sqrt(
             (xb - xa)**2 + (yb - ya)**2)
         return result
 
-    def find_path(self) -> None:
+    def find_path(self) -> list[str] | None:
         waiting_list: list = []
         origin: dict = {self.start: None}
         g_score: dict = {self.start: 0}
         heapq.heappush(waiting_list, (0, self.start))
         end_position: tuple[int, int] = (self.map_data.glb_end.x,
                                          self.map_data.glb_end.y)
+        end: str = self.map_data.glb_end.name
 
         while waiting_list:
-
             score: int
             hub: str
             score, hub = heapq.heappop(waiting_list)
+            path_finaly: list = []
 
             if hub == self.end:
-                break
+                path_finaly.append(self.map_data.glb_end.name)
+                for i in range(len(origin)):
+                    if origin[end] is not None:
+                        path_finaly.append(origin[end])
+                        end = origin[end]
+                path_finaly.reverse()
+                return path_finaly
 
             if hub in self.address_book:
                 for hub_next in self.address_book[hub]:
-                    g_current = g_score[hub] + 1
+                    g_current: int = g_score[hub] + 1
                     if (hub_next not in g_score
                        or g_current < g_score[hub_next]):
                         g_score[hub_next] = g_current
@@ -86,4 +86,11 @@ class TrafficController:
                             end_position[1])
                         score_f: Any = g_current + score_h
                         heapq.heappush(waiting_list, (score_f, hub_next))
+        return None
 
+    def trafic_drones(self) -> dict:
+        flight_plan: dict = {}
+        for i in range(self.map_data.glb_drones.nb_drone):
+            drone: str = "D" + str(i)
+            flight_plan[drone] = self.find_path()
+        return (flight_plan)

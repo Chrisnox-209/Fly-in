@@ -10,7 +10,8 @@ from solver import TrafficController
 
 
 class SimpleGame:
-    def __init__(self, game_map: Global, map_path: str) -> None:
+    def __init__(self, game_map: Global, map_path: str,
+                 simulation_state: bool) -> None:
         self.game_map: Global = game_map
         self.map_path: str = map_path
         self.font: Font = pygame.font.SysFont("arial", 80, bold=True)
@@ -21,6 +22,10 @@ class SimpleGame:
         self.quit_btn: Buttom_Gm = Buttom_Gm(
             110, 10, 90, 90, "EXIT", (50, 50, 50))
         self.renderer: GraphRenderer = GraphRenderer(self.game_map)
+
+        self.simulation_state: bool = simulation_state
+        self.zoom: float = 1.0
+
         start_x: Any
         start_y: Any
         start_name: str = self.game_map.glb_start.name
@@ -29,28 +34,50 @@ class SimpleGame:
         if node is None:
             raise ValueError(f"Node {start_name} introuvable")
 
-        test_drone = VisualDrone(start_x, start_y,
-                                 self.renderer.dict_x, self.renderer.dict_y,
-                                 node.radius)
-        self.renderer.drones_sprites.add(test_drone)
+        tarmac = TrafficController(game_map)
+        flight_plan: dict = tarmac.trafic_drones()
 
-        tour = TrafficController(game_map)
-        # test_drone.set_target(prochain_x, prochain_y)
+        for id_drone, plan in flight_plan.items():
+            drones = VisualDrone(start_x, start_y,
+                                 self.renderer.dict_x, self.renderer.dict_y,
+                                 node.radius,
+                                 plan,
+                                 self.renderer.infos_hub)
+            self.renderer.drones_sprites.add(drones)
 
     def update(self, events: list[pygame.event.Event]) -> str | None:
-        self.renderer.drones_sprites.update()
+        if self.simulation_state:
+            self.renderer.drones_sprites.update()
 
         for event in events:
+            # 1. Les clics de souris
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if self.return_btn.rect.collidepoint(event.pos):
                     return "MENU"
                 if self.quit_btn.rect.collidepoint(event.pos):
                     pygame.quit()
                     sys.exit()
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.simulation_state = not self.simulation_state
+
+                if event.key == pygame.K_r:
+                    pass
+
+            if event.type == pygame.MOUSEWHEEL:
+                if event.y > 0:
+                    self.zoom += 0.1
+                elif event.y < 0:
+                    self.zoom -= 0.1
+
+                if self.zoom < 0.2:
+                    self.zoom = 0.2
+
         return None
 
     def draw(self, screen: pygame.Surface) -> None:
-        screen.fill((100, 100, 100))
+        screen.fill((80, 160, 220))
 
         self.renderer.draw_connections(screen)
         self.renderer.all_sprites.draw(screen)
@@ -97,7 +124,7 @@ class GameApp:
             elif self.state == "PARSING":
                 try:
                     game_map: Global = ParseMaps.parse(self.map_to_load)
-                    self.game = SimpleGame(game_map, self.map_to_load)
+                    self.game = SimpleGame(game_map, self.map_to_load, False)
                     # self.menu.video.release()
                     self.state = "GAME"
                 except Exception as error:

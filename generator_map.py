@@ -55,7 +55,7 @@ class VisualNode(pygame.sprite.Sprite):
         self.name: str = name
 
         # 1. On calcule le pourcentage d'agrandissement
-        percentage: float = 50 + (capacity_drones - 1) * 5.5
+        percentage: float = 60 + (capacity_drones - 1) * 5.5
 
         # 2. On calcule le rayon théorique (qui peut exploser avec 36 drones)
         theoretical_radius: Any = math.ceil(
@@ -68,6 +68,7 @@ class VisualNode(pygame.sprite.Sprite):
         maximum_allowed_radius: Any = math.ceil(base_radius * 0.9)
         radius: Any | Any = min(theoretical_radius, maximum_allowed_radius)
         self.radius: Any = radius
+
         if isinstance(color, pygame.Surface):
             self.image = pygame.Surface((
                 radius * 2, radius * 2), pygame.SRCALPHA)
@@ -87,7 +88,10 @@ class VisualDrone(pygame.sprite.Sprite):
     def __init__(self, x: int, y: int,
                  dict_x: dict[str, int],
                  dict_y: dict[str, int],
-                 radius: int) -> None:
+                 radius: int,
+                 flight_plan: list,
+                 info_hub: dict,
+                 step: int = 0,) -> None:
         super().__init__()
         drone_images: list[list[str]] = [
             ["assets/gold-1.png", "assets/gold-2.png",
@@ -103,6 +107,11 @@ class VisualDrone(pygame.sprite.Sprite):
         ]
         self.dict_x: dict[str, int] = dict_x
         self.dict_y: dict[str, int] = dict_y
+        self.flight_plan: list = flight_plan
+        self.step: int = step
+        self.info_hub: dict = info_hub
+        self.speed = 20
+
         self.radius: int = radius
         my_drone_paths: list[str] = random.choice(drone_images)
         self.sprites: list[pygame.Surface] = []
@@ -115,9 +124,7 @@ class VisualDrone(pygame.sprite.Sprite):
             self.sprites.append(img)
 
         self.current_sprite: float = 0
-        self.animation_speed: float = 0.6
-        self.flight_animations: float = 1.9
-        self.stationary_animations: float = 1
+        self.propellers: float = 0
 
         self.image: Any = self.sprites[self.current_sprite]
         self.rect: Any = self.image.get_rect()
@@ -127,15 +134,42 @@ class VisualDrone(pygame.sprite.Sprite):
         self.rect.center = (int(self.x), int(self.y))
 
         self.angle: float = 270
+        original_image: pygame.Surface = self.sprites[int(self.current_sprite)]
+        self.image = pygame.transform.rotate(original_image, self.angle)
 
-    def set_target(self, target_x: float, target_y: float) -> None:
+    def drone_angle(self, target_x: float, target_y: float) -> None:
         dx: float = target_x - self.x
         dy: float = target_y - self.y
+        if dx == 0 and dy == 0:
+            return
 
-        self.angle = math.degrees(math.atan2(-dy, dx))
+        calculate_angle: float = math.degrees(math.atan2(-dy, dx))
+        offset = -90
+        self.angle = calculate_angle + offset
 
     def update(self) -> None:
-        self.current_sprite += self.animation_speed
+        pos_x: int
+        pos_y: int
+        if self.step == 0:
+            self.propellers = 0
+        if self.step >= len(self.flight_plan):
+            self.propellers = 0
+        else:
+            hub: str = self.flight_plan[self.step]
+            pos_x, pos_y = self.info_hub[hub]
+            self.drone_angle(pos_x, pos_y)
+            dx: float = pos_x - self.x
+            dy: float = pos_y - self.y
+            distance: float = math.hypot(dx, dy)
+            if distance <= self.speed:
+                self.step += 1
+                self.propellers = 0.6
+            else:
+                self.x += (dx / distance) * self.speed
+                self.y += (dy / distance) * self.speed
+                self.propellers = 2
+
+        self.current_sprite += self.propellers
         if int(self.current_sprite) >= len(self.sprites):
             self.current_sprite = 0
 
