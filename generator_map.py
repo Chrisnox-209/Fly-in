@@ -80,6 +80,13 @@ class VisualNode(pygame.sprite.Sprite):
                 (radius * 2, radius * 2), pygame.SRCALPHA)
             pygame.draw.circle(self.image, color, (radius, radius), radius)
 
+        font: Font = pygame.font.SysFont("arial", 35, bold=True)
+        texte_capacite = str(capacity_drones)
+        text_surface: pygame.Surface = font.render(texte_capacite, True, (
+            45, 45, 45))
+        text_rect: pygame.Rect = text_surface.get_rect(center=(radius, radius))
+        self.image.blit(text_surface, text_rect)
+
         self.rect: pygame.Rect = self.image.get_rect()
         self.rect.center = (x, y)
 
@@ -89,8 +96,8 @@ class VisualDrone(pygame.sprite.Sprite):
                  dict_x: dict[str, int],
                  dict_y: dict[str, int],
                  radius: int,
-                 flight_plan: list,
-                 info_hub: dict,
+                 flight_plan: list[str],
+                 info_hub: dict[str, tuple[int, int]],
                  step: int = 0,) -> None:
         super().__init__()
         drone_images: list[list[str]] = [
@@ -107,9 +114,9 @@ class VisualDrone(pygame.sprite.Sprite):
         ]
         self.dict_x: dict[str, int] = dict_x
         self.dict_y: dict[str, int] = dict_y
-        self.flight_plan: list = flight_plan
+        self.flight_plan: list[str] = flight_plan
         self.step: int = step
-        self.info_hub: dict = info_hub
+        self.info_hub: dict[str, tuple[int, int]] = info_hub
         self.speed = 20
 
         self.radius: int = radius
@@ -205,7 +212,8 @@ class Buttom_Gm:
 class GraphRenderer:
     def __init__(self, map_data: Any) -> None:
         pygame.init()
-        self.screen: pygame.Surface = pygame.display.set_mode((2832, 1504))
+        self.world_surface: pygame.Surface = pygame.display.set_mode(
+            (2832, 1504))
         self.rainbow_texture: pygame.Surface = pygame.image.load(
             "assets/rainbow.jpg").convert_alpha()
         icon: pygame.Surface = pygame.image.load(
@@ -366,7 +374,7 @@ class GraphRenderer:
             endx: Any = self.infos_hub[c.connection_b][0]
             endy: Any = self.infos_hub[c.connection_b][1]
             pygame.draw.line(surface,
-                             (255, 255, 255),
+                             (200, 200, 200),
                              (startx, starty),
                              (endx, endy), 5)
 
