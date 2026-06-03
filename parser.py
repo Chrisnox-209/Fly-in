@@ -177,6 +177,10 @@ class ParseMaps():
     def create_hub(type_obj: Any, string: str, line: int, id: int) -> Any:
         key: str
         value: str
+        flag_color: int = 0
+        flag_zone: int = 0
+        flag_max_drones: int = 0
+
         if "[" in string and "]" in string:
             data: str = string[:string.index("[")].strip()
             data_list: list[str] = data.strip().split()
@@ -214,10 +218,25 @@ class ParseMaps():
                 key, value = item.split("=", 1)
 
                 if key == "color":
+                    flag_color += 1
+                    if flag_color > 1:
+                        raise ValueError("[COLOR] the option "
+                                         "is duplicated "
+                                         f"line → {line}")
                     hub.color = value
                 elif key == "zone":
+                    flag_zone += 1
+                    if flag_zone > 1:
+                        raise ValueError("[ZONE] the option "
+                                         "is duplicated "
+                                         f"line → {line}")
                     hub.zone = value
                 elif key == "max_drones":
+                    flag_max_drones += 1
+                    if flag_max_drones > 1:
+                        raise ValueError("[MAX DRONES] the option "
+                                         "is duplicated "
+                                         f"line → {line}")
                     try:
                         hub.max_drones = int(value)
                     except ValueError:
@@ -261,6 +280,7 @@ class ParseMaps():
         b: str
         key: str
         value: str
+        flag_link_capacity: int = 0
         if "[" in string and "]" in string:
             data: str = string[:string.index("[")].strip()
             data_list: list[str] = data.strip().split()
@@ -276,6 +296,11 @@ class ParseMaps():
             for item in option.split():
                 key, value = item.split("=", 1)
                 if key == "max_link_capacity":
+                    flag_link_capacity += 1
+                    if flag_link_capacity > 1:
+                        raise ValueError("[LINK CAPACITY] the option "
+                                         "is duplicated "
+                                         f"line → {line}")
                     try:
                         value_int = int(value)
                     except ValueError:
@@ -309,6 +334,7 @@ class ParseMaps():
         drone: Drone | None = None
         start_flag: int = 0
         end_flag: int = 0
+        nb_drone_flag: int = 0
 
         try:
             data: Any
@@ -317,6 +343,11 @@ class ParseMaps():
                 for i, line in enumerate(file):
                     index: str = line.split(":", 1)[0].strip()
                     if index == "nb_drones":
+                        nb_drone_flag += 1
+                        if nb_drone_flag > 1:
+                            raise ValueError("[DRONE] the parameter "
+                                             "is duplicated "
+                                             f"line → {i + 1}")
                         data = line.split(":", 1)[1].strip()
                         try:
                             nb_drone = int(data)
