@@ -64,33 +64,34 @@ class SimpleGame:
         start_name: str = self.game_map.glb_start.name
         start_x: int
         start_y: int
-        start_x, start_y = self.renderer.infos_hub[start_name]
+        start_x, start_y = self.renderer.hub_info[start_name]
 
         node: VisualNode | None = self.renderer.nodes.get(start_name)
         if node is None:
-            raise ValueError(f"Node {start_name} introuvable")
+            raise ValueError(f"Node {start_name} not found")
 
         tarmac: TrafficController = TrafficController(game_map)
         for wp_name, node_a, node_b, fraction in tarmac.generated_waypoints:
-            x_a, y_a = self.renderer.infos_hub[node_a]
-            x_b, y_b = self.renderer.infos_hub[node_b]
-            self.renderer.infos_hub[wp_name] = (
+            x_a, y_a = self.renderer.hub_info[node_a]
+            x_b, y_b = self.renderer.hub_info[node_b]
+            self.renderer.hub_info[wp_name] = (
                 int(x_a + (x_b - x_a) * fraction),
                 int(y_a + (y_b - y_a) * fraction)
             )
-        flight_plan: dict[str, list[str]] = tarmac.trafic_drones()
+
+        flight_plan: dict[str, list[str]] = tarmac.get_traffic_plan()
 
         id_drone: str
         plan: list[str]
         for id_drone, plan in flight_plan.items():
             drones: VisualDrone = VisualDrone(
-                start_x,
-                start_y,
+                float(start_x),
+                float(start_y),
                 self.renderer.dict_x,
                 self.renderer.dict_y,
                 node.radius,
                 plan,
-                self.renderer.infos_hub
+                self.renderer.hub_info
             )
             self.renderer.drones_sprites.add(drones)
 
@@ -98,14 +99,14 @@ class SimpleGame:
         if self.simulation_state:
             self.renderer.drones_sprites.update()
 
-        end: bool = True
+        all_finished: bool = True
         drone: VisualDrone
         for drone in self.renderer.drones_sprites:
             if drone.step < len(drone.flight_plan):
-                end = False
+                all_finished = False
                 break
 
-        if end and len(self.renderer.drones_sprites) > 0:
+        if all_finished and len(self.renderer.drones_sprites) > 0:
             self.simulation_state = False
 
         event: Event
@@ -131,8 +132,6 @@ class SimpleGame:
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE:
                     self.simulation_state = not self.simulation_state
-                if event.key == pygame.K_r:
-                    pass
 
             if event.type == pygame.MOUSEWHEEL:
                 if event.y > 0:

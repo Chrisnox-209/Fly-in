@@ -6,7 +6,7 @@ from typing import Any
 class TrafficController:
     def __init__(self, map_data: Any) -> None:
         self.map_data: Any = map_data
-        self.hub_details: dict[str, tuple[int, str, int, int]] = {}
+        self.hub_details: dict[str, tuple[int, str, float, float]] = {}
         self.address_book: dict[str, set[str]] = {}
         self.start: str = map_data.glb_start.name
         self.end: str = map_data.glb_end.name
@@ -15,54 +15,89 @@ class TrafficController:
         self.flight_log: dict[tuple[str, int], int] = {}
         self.link_log: dict[tuple[str, str, int], int] = {}
 
+        self.generated_waypoints: list[tuple[str, str, str, float]] = []
+
         self.hub_details[map_data.glb_start.name] = (
             map_data.glb_start.max_drones,
             map_data.glb_start.zone,
-            map_data.glb_start.x,
-            map_data.glb_start.y
+            float(map_data.glb_start.x),
+            float(map_data.glb_start.y)
         )
         self.hub_details[map_data.glb_end.name] = (
             map_data.glb_end.max_drones,
             map_data.glb_end.zone,
-            map_data.glb_end.x,
-            map_data.glb_end.y
+            float(map_data.glb_end.x),
+            float(map_data.glb_end.y)
         )
 
         self.address_book[map_data.glb_start.name] = set()
         self.address_book[map_data.glb_end.name] = set()
 
+        hub: Any
         for hub in map_data.glb_hub:
             self.address_book[hub.name] = set()
             self.hub_details[hub.name] = (
                 hub.max_drones,
                 hub.zone,
-                hub.x,
-                hub.y
+                float(hub.x),
+                float(hub.y)
             )
 
-        for c in map_data.glb_connection:
-            if c.connection_a in self.address_book:
-                self.address_book[c.connection_a].add(c.connection_b)
-            if c.connection_b in self.address_book:
-                self.address_book[c.connection_b].add(c.connection_a)
-            self.link_capacities[(c.connection_a, c.connection_b)] = (
-                c.max_link_capacity
-            )
-            self.link_capacities[(c.connection_b, c.connection_a)] = (
-                c.max_link_capacity
-            )
+        connection: Any
+        for connection in map_data.glb_connection:
+            node_a: str = connection.connection_a
+            node_b: str = connection.connection_b
+            capacity: int = connection.max_link_capacity
+
+            x_a: float = self.hub_details[node_a][2]
+            y_a: float = self.hub_details[node_a][3]
+            x_b: float = self.hub_details[node_b][2]
+            y_b: float = self.hub_details[node_b][3]
+
+            self.address_book[node_a].add(node_b)
+            self.address_book[node_b].add(node_a)
+            self.link_capacities[(node_a, node_b)] = capacity
+            self.link_capacities[(node_b, node_a)] = capacity
+
+            prev_node: str = node_a
+            i: int
+            for i in range(1, capacity + 1):
+                wp_name: str = f"wp_{node_a}_{node_b}_{i}"
+                fraction: float = i / (capacity + 1)
+
+                mx: float = x_a + (x_b - x_a) * fraction
+                my: float = y_a + (y_b - y_a) * fraction
+
+                self.hub_details[wp_name] = (1, "priority", mx, my)
+                self.address_book[wp_name] = set()
+
+                self.generated_waypoints.append(
+                    (wp_name, node_a, node_b, fraction)
+                )
+
+                self.address_book[prev_node].add(wp_name)
+                self.address_book[wp_name].add(prev_node)
+                self.link_capacities[(prev_node, wp_name)] = 1
+                self.link_capacities[(wp_name, prev_node)] = 1
+
+                prev_node = wp_name
+
+            self.address_book[prev_node].add(node_b)
+            self.address_book[node_b].add(prev_node)
+            self.link_capacities[(prev_node, node_b)] = 1
+            self.link_capacities[(node_b, prev_node)] = 1
 
     @staticmethod
-    def score(xa: int, ya: int, xb: int, yb: int) -> float:
+    def calculate_score(xa: float, ya: float, xb: float, yb: float) -> float:
         return math.sqrt((xb - xa) ** 2 + (yb - ya) ** 2)
 
     @staticmethod
-    def zone_type_score(zone: str) -> int:
+    def get_zone_score(zone: str) -> int:
         if zone == "blocked":
             return 0
-        elif zone == "restricted":
+        if zone == "restricted":
             return 3
-        elif zone == "priority":
+        if zone == "priority":
             return 1
         return 2
 
@@ -77,30 +112,26 @@ class TrafficController:
 
         heapq.heappush(waiting_list, (0.0, self.start, 0))
 
-        end_position: tuple[int, int] = (
-            self.map_data.glb_end.x,
-            self.map_data.glb_end.y
+        end_pos: tuple[float, float] = (
+            self.hub_details[self.end][2],
+            self.hub_details[self.end][3]
         )
 
         while waiting_list:
-            score_f: float
-            current_hub: str
-            current_turn: int
-            score_f, current_hub, current_turn = heapq.heappop(waiting_list)
-
+            _, current_hub, current_turn = heapq.heappop(waiting_list)
             current_state: tuple[str, int] = (current_hub, current_turn)
 
-            if g_score.get(current_state, float('inf')) < current_turn:
+            if current_turn > g_score.get(current_state, float('inf')):
                 continue
 
-            previous_physical_hub: str | None = None
-            previous_state: tuple[str, int] | None = origin.get(current_state)
+            previous_hub: str | None = None
+            prev_state: tuple[str, int] | None = origin.get(current_state)
 
-            while previous_state is not None:
-                if previous_state[0] != current_hub:
-                    previous_physical_hub = previous_state[0]
+            while prev_state is not None:
+                if prev_state[0] != current_hub:
+                    previous_hub = prev_state[0]
                     break
-                previous_state = origin.get(previous_state)
+                prev_state = origin.get(prev_state)
 
             if current_hub == self.end:
                 path_states: list[tuple[str, int]] = []
@@ -112,18 +143,17 @@ class TrafficController:
 
                 path_states.reverse()
 
-                path_final: list[str] = []
+                final_path: list[str] = [path_states[0][0]]
+                i: int
                 for i in range(len(path_states) - 1):
-                    hub_actuel: str = path_states[i][0]
-                    tour_actuel: int = path_states[i][1]
-                    tour_suivant: int = path_states[i + 1][1]
+                    step_turn: int = path_states[i][1]
+                    next_hub: str = path_states[i + 1][0]
+                    next_turn: int = path_states[i + 1][1]
 
-                    for _ in range(tour_suivant - tour_actuel):
-                        path_final.append(hub_actuel)
+                    for _ in range(next_turn - step_turn):
+                        final_path.append(next_hub)
 
-                path_final.append(path_states[-1][0])
-
-                return path_final, path_states
+                return final_path, path_states
 
             if current_hub not in self.address_book:
                 continue
@@ -134,15 +164,16 @@ class TrafficController:
             possible_neighbors.append(current_hub)
 
             for next_hub in possible_neighbors:
-                if next_hub == previous_physical_hub:
+                if next_hub == previous_hub:
                     continue
 
                 zone_score: int
                 if next_hub == current_hub:
-                    zone_score = 4
+                    zone_score = 1
                 else:
-                    type_zone: str = self.hub_details[next_hub][1]
-                    zone_score = TrafficController.zone_type_score(type_zone)
+                    zone_score = self.get_zone_score(
+                        self.hub_details[next_hub][1]
+                    )
                     if zone_score == 0:
                         continue
 
@@ -150,102 +181,86 @@ class TrafficController:
                 next_state: tuple[str, int] = (next_hub, end_turn)
 
                 capacity_max: int = self.hub_details[next_hub][0]
-                hub_full: bool = False
-
-                for t in range(current_turn + 1, end_turn + 1):
-                    if self.flight_log.get((next_hub, t), 0) >= capacity_max:
-                        hub_full = True
-                        break
+                hub_full: bool = self.flight_log.get(
+                    (next_hub, end_turn), 0
+                ) >= capacity_max
 
                 if hub_full and next_hub != self.start:
                     continue
 
                 if next_hub != current_hub:
-                    route_capacity: int = self.link_capacities[
-                        (current_hub, next_hub)
-                    ]
-                    route_is_full: bool = False
-
-                    for t in range(current_turn + 1, end_turn + 1):
-                        if self.link_log.get(
-                            (current_hub, next_hub, t), 0
-                        ) >= route_capacity:
-                            route_is_full = True
+                    route_cap: int = self.link_capacities[(
+                        current_hub, next_hub
+                    )]
+                    route_full: bool = False
+                    for t in range(current_turn, end_turn + 1):
+                        if self.link_log.get((current_hub, next_hub, t),
+                                             0) >= route_cap:
+                            route_full = True
                             break
-
-                    if route_is_full:
+                    if route_full:
                         continue
 
                 if next_state not in g_score or end_turn < g_score[next_state]:
                     g_score[next_state] = end_turn
                     origin[next_state] = current_state
 
-                    hub_position: tuple[int, int] = (
+                    pos: tuple[float, float] = (
                         self.hub_details[next_hub][2],
                         self.hub_details[next_hub][3]
                     )
 
-                    score_h: float = self.score(
-                        hub_position[0],
-                        hub_position[1],
-                        end_position[0],
-                        end_position[1]
+                    score_h: float = self.calculate_score(
+                        pos[0], pos[1], end_pos[0], end_pos[1]
+                    )
+
+                    wait_penalty: float = (
+                        1e-6
+                        if next_hub == current_hub and next_hub != self.start
+                        else 0.0
                     )
 
                     heapq.heappush(
                         waiting_list,
-                        (end_turn + score_h, next_hub, end_turn)
+                        (end_turn + score_h + wait_penalty, next_hub, end_turn)
                     )
 
         return None
 
-    def trafic_drones(self) -> dict[str, list[str]]:
+    def get_traffic_plan(self) -> dict[str, list[str]]:
         flight_plan: dict[str, list[str]] = {}
-
         self.flight_log.clear()
         self.link_log.clear()
 
         for i in range(self.map_data.glb_drones.nb_drone):
-            drone: str = "D" + str(i)
-            result: tuple[list[str], list[tuple[str, int]]] | None = (
-                self.find_path()
-            )
+            drone: str = f"D{i}"
+            result = self.find_path()
 
             if result is None:
                 flight_plan[drone] = [self.start]
                 continue
 
-            path: list[str]
-            path_states: list[tuple[str, int]]
             path, path_states = result
             flight_plan[drone] = path
 
-            round_idx: int
-            step: str
-            for round_idx, step in enumerate(path):
-                self.flight_log[(step, round_idx)] = (
-                    self.flight_log.get((step, round_idx), 0) + 1
+            for idx, step in enumerate(path):
+                self.flight_log[(step, idx)] = (
+                    self.flight_log.get((step, idx), 0) + 1
                 )
 
-            j: int
             for j in range(len(path_states) - 1):
-                hub_actuel: str = path_states[j][0]
-                tour_actuel: int = path_states[j][1]
-                hub_suivant: str = path_states[j + 1][0]
-                tour_suivant: int = path_states[j + 1][1]
+                cur_node: str = path_states[j][0]
+                cur_t: int = path_states[j][1]
+                nxt_node: str = path_states[j + 1][0]
+                nxt_t: int = path_states[j + 1][1]
 
-                if hub_actuel != hub_suivant:
-                    t: int
-                    for t in range(tour_actuel + 1, tour_suivant + 1):
-                        self.link_log[(hub_actuel, hub_suivant, t)] = (
-                            self.link_log.get(
-                                (hub_actuel, hub_suivant, t), 0
-                            ) + 1
+                if cur_node != nxt_node:
+                    for t in range(cur_t, nxt_t + 1):
+                        self.link_log[(cur_node, nxt_node, t)] = (
+                            self.link_log.get((cur_node, nxt_node, t), 0) + 1
                         )
-                        self.link_log[(hub_suivant, hub_actuel, t)] = (
-                            self.link_log.get(
-                                (hub_suivant, hub_actuel, t), 0
-                            ) + 1
+                        self.link_log[(nxt_node, cur_node, t)] = (
+                            self.link_log.get((nxt_node, cur_node, t), 0) + 1
                         )
 
         return flight_plan
