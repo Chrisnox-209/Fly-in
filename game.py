@@ -71,6 +71,13 @@ class SimpleGame:
             raise ValueError(f"Node {start_name} introuvable")
 
         tarmac: TrafficController = TrafficController(game_map)
+        for wp_name, node_a, node_b, fraction in tarmac.generated_waypoints:
+            x_a, y_a = self.renderer.infos_hub[node_a]
+            x_b, y_b = self.renderer.infos_hub[node_b]
+            self.renderer.infos_hub[wp_name] = (
+                int(x_a + (x_b - x_a) * fraction),
+                int(y_a + (y_b - y_a) * fraction)
+            )
         flight_plan: dict[str, list[str]] = tarmac.trafic_drones()
 
         id_drone: str
