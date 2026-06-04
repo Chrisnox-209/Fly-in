@@ -1,0 +1,48 @@
+# Custom Level: Hardcore Maze
+# This map is designed to stress-test the A* time-expanded state algorithm.
+# 12 drones must navigate a tight grid where almost all connections 
+# have a capacity of 1, forcing massive traffic jams and complex scheduling.
+
+nb_drones: 12
+
+start_hub: start 0 3 [color=green max_drones=12]
+end_hub: goal 6 3 [color=green max_drones=12]
+
+# Top route (Restricted)
+hub: top1 2 1 [color=yellow max_drones=2 zone=restricted]
+hub: top2 4 1 [color=yellow max_drones=2 zone=restricted]
+
+# Middle grid (Highly congested)
+hub: mid1 2 3 [color=blue max_drones=3]
+hub: mid2 3 3 [color=red max_drones=1 zone=priority]
+hub: mid3 4 3 [color=blue max_drones=3]
+
+# Bottom route (Restricted)
+hub: bot1 2 5 [color=yellow max_drones=2 zone=restricted]
+hub: bot2 4 5 [color=yellow max_drones=2 zone=restricted]
+
+# Connect Start to first layer
+connection: start-top1 [max_link_capacity=2]
+connection: start-mid1 [max_link_capacity=2]
+connection: start-bot1 [max_link_capacity=2]
+
+# Top route progression
+connection: top1-top2 [max_link_capacity=1]
+connection: top2-goal [max_link_capacity=2]
+
+# Middle route progression
+connection: mid1-mid2 [max_link_capacity=1]
+connection: mid2-mid3 [max_link_capacity=1]
+connection: mid3-goal [max_link_capacity=2]
+
+# Bottom route progression
+connection: bot1-bot2 [max_link_capacity=1]
+connection: bot2-goal [max_link_capacity=2]
+
+# Cross-connections (Causes A* to explore thousands of lane-switching options)
+connection: top1-mid1 [max_link_capacity=1]
+connection: bot1-mid1 [max_link_capacity=1]
+connection: top2-mid3 [max_link_capacity=1]
+connection: bot2-mid3 [max_link_capacity=1]
+connection: mid2-top1 [max_link_capacity=1]
+connection: mid2-bot2 [max_link_capacity=1]
