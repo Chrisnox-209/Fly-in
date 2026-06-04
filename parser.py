@@ -56,6 +56,23 @@ class Global(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def check_position_conection(self) -> Self:
+        line_hub: list[int] = [hub.line_number for hub in self.glb_hub]
+        line_hub.append(self.glb_start.line_number)
+        line_hub.append(self.glb_end.line_number)
+
+        for connection in self.glb_connection:
+            if any(connection.line_number < line for line in line_hub):
+                raise ValueError(f"[CONNECTION] connector "
+                                 f"{connection.connection_a}-"
+                                 f"{connection.connection_b}"
+                                 " The connection cannot be"
+                                 " created before a hub"
+                                 " line → "
+                                 f"{connection.line_number}")
+        return self
+
+    @model_validator(mode="after")
     def check_duplicate_name(self) -> Self:
         """Validates that hub names are unique across the network.
 
