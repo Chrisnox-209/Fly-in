@@ -63,6 +63,7 @@ class VisualNode(pygame.sprite.Sprite):
         self.dict_y: dict[str, int] = dict_y
         self.name: str = name
         self.zone_type: str = zone_type
+        self.capacity: int = capacity
 
         percentage: float = 60 + (capacity - 1) * 5.5
         theoretical_radius: int = math.ceil(
@@ -143,6 +144,7 @@ class VisualNode(pygame.sprite.Sprite):
 class VisualDrone(pygame.sprite.Sprite):
     def __init__(
         self,
+        name: str,
         x: float,
         y: float,
         dict_x: dict[str, int],
@@ -167,6 +169,7 @@ class VisualDrone(pygame.sprite.Sprite):
         ]
         self.dict_x: dict[str, int] = dict_x
         self.dict_y: dict[str, int] = dict_y
+        self.name: str = name
         self.flight_plan: list[str] = flight_plan
         self.step: int = step
         self.hub_info: dict[str, tuple[int, int]] = hub_info
@@ -234,6 +237,8 @@ class VisualDrone(pygame.sprite.Sprite):
             self.set_angle(float(target_x), float(target_y))
 
         progression: float = self.current_frame / self.frames_per_turn
+        if progression > 1.0:
+            progression = 1.0
 
         if current_hub_name == next_hub_name:
             self.x = float(start_x)
@@ -242,10 +247,11 @@ class VisualDrone(pygame.sprite.Sprite):
         else:
             self.x = start_x + (target_x - start_x) * progression
             self.y = start_y + (target_y - start_y) * progression
-            self.propellers = 2.0
+            self.propellers = 2.0 if progression < 1.0 else 0.6
 
         self.current_frame += 1.3
-        if self.current_frame >= self.frames_per_turn:
+        pause_frames: float = 15.0
+        if self.current_frame >= self.frames_per_turn + pause_frames:
             self.current_frame = 0.0
             self.step += 1
 
@@ -395,6 +401,7 @@ class GraphRenderer:
         self.nodes[hub_data.name] = visual_node
 
     def draw_connections(self, surface: pygame.Surface) -> None:
+        font: pygame.font.Font = pygame.font.SysFont("arial", 20, bold=True)
         connection: Any
         for connection in self.map_data.glb_connection:
             start_x: int = self.hub_info[connection.connection_a][0]
@@ -408,6 +415,26 @@ class GraphRenderer:
                 (end_x, end_y),
                 5
             )
+
+            mid_x: int = (start_x + end_x) // 2
+            mid_y: int = (start_y + end_y) // 2
+
+            pygame.draw.circle(
+                surface,
+                (200, 200, 200),
+                (mid_x, mid_y),
+                16
+            )
+
+            text_surf: pygame.Surface = font.render(
+                str(connection.max_link_capacity),
+                True,
+                (30, 30, 30)
+            )
+            text_rect: pygame.Rect = text_surf.get_rect(
+                center=(mid_x, mid_y)
+            )
+            surface.blit(text_surf, text_rect)
 
     def draw_drones(self, surface: pygame.Surface) -> None:
         self.drones_sprites.draw(surface)
