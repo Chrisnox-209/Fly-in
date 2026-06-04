@@ -10,6 +10,11 @@ from pydantic import (
 
 
 class Global(BaseModel):
+    """Pydantic model representing the global parsed map structure.
+
+    Contains all the entities parsed from a map file, including drones, start/end hubs,
+    intermediate hubs, and connections, along with validation logic.
+    """
     model_config: ClassVar[ConfigDict] = ConfigDict(
         arbitrary_types_allowed=True
     )
@@ -21,6 +26,14 @@ class Global(BaseModel):
 
     @model_validator(mode="after")
     def check_connection_ab(self) -> Self:
+        """Validates that all connections link existing hubs.
+
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If a connection references a non-existent hub.
+        """
         valid_names: list[str] = [hub.name for hub in self.glb_hub]
         valid_names.append(self.glb_start.name)
         valid_names.append(self.glb_end.name)
@@ -31,18 +44,26 @@ class Global(BaseModel):
                                  f"{connection.connection_a}"
                                  " name "
                                  "does not match a hub line → "
-                                 f"{connection.nb_line}")
+                                 f"{connection.line_number}")
         for connection in self.glb_connection:
             if connection.connection_b not in valid_names:
                 raise ValueError(f"[CONNECTION] connector "
                                  f"{connection.connection_b}"
                                  " name "
                                  "does not match a hub line → "
-                                 f"{connection.nb_line}")
+                                 f"{connection.line_number}")
         return self
 
     @model_validator(mode="after")
     def check_duplicate_name(self) -> Self:
+        """Validates that hub names are unique across the network.
+
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If a duplicate hub name is found.
+        """
         all_names: list[str] = [hub.name for hub in self.glb_hub]
         all_names.append(self.glb_start.name)
         all_names.append(self.glb_end.name)
@@ -52,18 +73,27 @@ class Global(BaseModel):
                 raise ValueError(f"[HUB] the hub name "
                                  f"({hub.name}) is "
                                  "already in use line → "
-                                 f"{hub.nb_line}")
+                                 f"{hub.line_number}")
         return self
 
     @model_validator(mode="after")
     def postion_drone(self) -> Self:
-        pos_drone: int = self.glb_drones.nb_line
-        all_pos: list[int] = [hub.nb_line for hub in self.glb_hub]
-        all_pos_connection: list[int] = [connect.nb_line for connect
+        """Validates that the drone configuration is at the top of the file.
+
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If the drone configuration appears after
+            other elements.
+        """
+        pos_drone: int = self.glb_drones.line_number
+        all_pos: list[int] = [hub.line_number for hub in self.glb_hub]
+        all_pos_connection: list[int] = [connect.line_number for connect
                                          in self.glb_connection]
         all_pos.extend(all_pos_connection)
-        all_pos.append(self.glb_end.nb_line)
-        all_pos.append(self.glb_start.nb_line)
+        all_pos.append(self.glb_end.line_number)
+        all_pos.append(self.glb_start.line_number)
 
         for nb in all_pos:
             if nb <= pos_drone:
@@ -74,7 +104,15 @@ class Global(BaseModel):
 
     @model_validator(mode="after")
     def check_double_path(self) -> Self:
-        list_connector: list[tuple[str, str]] = [
+        """Validates that there are no duplicate connections between hubs.
+
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If duplicate path definitions exist.
+        """
+        connector_list: list[tuple[str, str]] = [
             (con.connection_a, con.connection_b)
             for con in self.glb_connection]
 
@@ -82,99 +120,139 @@ class Global(BaseModel):
             (con.connection_b, con.connection_a)
             for con in self.glb_connection]
 
-        list_connector.extend(reverse_connector)
+        connector_list.extend(reverse_connector)
 
         for c in self.glb_connection:
             path_tuple: tuple[str, str] = c.connection_a, c.connection_b
-            if list_connector.count(path_tuple) > 1:
+            if connector_list.count(path_tuple) > 1:
                 raise ValueError(f"[CONNECTION] The path for "
                                  f"this connector {path_tuple}"
                                  " already exists line → "
-                                 f"{c.nb_line}")
+                                 f"{c.line_number}")
         return self
 
     @model_validator(mode="after")
     def check_color(self) -> Self:
-        list_colors: list[str] = ["yellow", "grey", "red", "orange", "brown",
-                                  "blue", "green", "pink", "cyan", "purple",
-                                  "lime", "magenta", "gold", "black", "maroon",
-                                  "darkred", "violet", "crimson", "rainbow"]
+        """Validates that all specified node colors are recognized.
+
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If an invalid color is encountered.
+        """
+        color_list: list[str] = ["yellow", "grey", "red", "orange", "brown",
+                                 "blue", "green", "pink", "cyan", "purple",
+                                 "lime", "magenta", "gold", "black", "maroon",
+                                 "darkred", "violet", "crimson", "rainbow"]
 
         for hub in self.glb_hub:
-            if hub.color not in list_colors and hub.color is not None:
+            if hub.color not in color_list and hub.color is not None:
                 raise ValueError("[HUB] The color for the "
                                  "hub is not valid line → "
-                                 f"{hub.nb_line}\n"
+                                 f"{hub.line_number}\n"
                                  "[Valid color list]: "
-                                 f"{list_colors}")
+                                 f"{color_list}")
 
-        if (self.glb_start.color not in list_colors
+        if (self.glb_start.color not in color_list
            and self.glb_start.color is not None):
             raise ValueError("[START HUB] The color for the "
                              "Start hub is not valid line → "
-                             f"{self.glb_start.nb_line}\n"
+                             f"{self.glb_start.line_number}\n"
                              "[Valid color list]: "
-                             f"{list_colors}")
+                             f"{color_list}")
 
-        if (self.glb_end.color not in list_colors
+        if (self.glb_end.color not in color_list
            and self.glb_end.color is not None):
             raise ValueError("[END HUB] The color for the "
                              "End  hub is not valid line → "
-                             f"{self.glb_end.nb_line}\n"
+                             f"{self.glb_end.line_number}\n"
                              "[Valid color list]: "
-                             f"{list_colors}")
+                             f"{color_list}")
 
         return self
 
     @model_validator(mode="after")
     def check_zone(self) -> Self:
-        list_zone: list[str] = ["normal", "blocked", "restricted", "priority"]
+        """Validates that all specified hub zones are recognized.
 
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If an invalid zone is encountered.
+        """
+        zone_list: list[str] = ["normal", "blocked", "restricted", "priority"]
+
+        hub: Hub
         for hub in self.glb_hub:
-            if hub.zone not in list_zone:
+            if hub.zone not in zone_list:
                 raise ValueError("[HUB] The zone for the "
                                  "hub is not valid line → "
-                                 f"{hub.nb_line}\n"
+                                 f"{hub.line_number}\n"
                                  "[Valid zone list]: "
-                                 f"{list_zone}")
+                                 f"{zone_list}")
         return self
 
     @model_validator(mode="after")
     def check_coordinates(self) -> Self:
-        list_xy: list[tuple[int, int]] = [(hub.x, hub.y)
+        """Validates that no two hubs share the same coordinates.
+
+        Returns:
+            Self: The validated model.
+
+        Raises:
+            ValueError: If duplicate coordinates are found.
+        """
+        xy_list: list[tuple[int, int]] = [(hub.x, hub.y)
                                           for hub in self.glb_hub]
-        list_xy.append((self.glb_start.x, self.glb_start.y))
-        list_xy.append((self.glb_end.x, self.glb_end.y))
+        xy_list.append((self.glb_start.x, self.glb_start.y))
+        xy_list.append((self.glb_end.x, self.glb_end.y))
 
         data_start: tuple[int, int] = (self.glb_start.x, self.glb_start.y)
-        if list_xy.count(data_start) > 1:
+        if xy_list.count(data_start) > 1:
             raise ValueError(f"[START_HUB] {self.glb_start.name} These "
                              f"coordinates {data_start} "
                              "are already in use "
-                             f"line → {self.glb_start.nb_line}")
+                             f"line → {self.glb_start.line_number}")
 
         for hub in self.glb_hub:
             data: tuple[int, int] = (hub.x, hub.y)
-            if list_xy.count(data) > 1:
+            if xy_list.count(data) > 1:
                 raise ValueError(f"[HUB] {hub.name} These coordinates "
                                  f"{data} "
                                  "are already in use "
-                                 f"line → {hub.nb_line}")
+                                 f"line → {hub.line_number}")
 
         data_end: tuple[int, int] = (self.glb_end.x, self.glb_end.y)
-        if list_xy.count(data_end) > 1:
+        if xy_list.count(data_end) > 1:
             raise ValueError(f"[END_HUB] {self.glb_end.name} These "
                              f"coordinates {data_end} "
                              "are already in use "
-                             f"line → {self.glb_end.nb_line}")
+                             f"line → {self.glb_end.line_number}")
 
         return self
 
 
 class ParseMaps():
+    """Utility class for parsing and constructing the network map from text files."""
 
     @staticmethod
     def create_hub(type_obj: Any, string: str, line: int, id: int) -> Any:
+        """Parses a hub definition string and creates a Hub instance.
+
+        Args:
+            type_obj (Any): The hub class type (e.g., Start, End, Hub).
+            string (str): The raw string defining the hub.
+            line (int): The line number in the source file.
+            id (int): A unique identifier for the node.
+
+        Returns:
+            Any: An instantiated object of type `type_obj`.
+
+        Raises:
+            ValueError: If the hub format is invalid or contains errors.
+        """
         key: str
         value: str
         flag_color: int = 0
@@ -206,7 +284,7 @@ class ParseMaps():
                 id=id,
                 x=x,
                 y=y,
-                nb_line=line
+                line_number=line
             )
 
             option: str = (
@@ -269,13 +347,26 @@ class ParseMaps():
                 id=id,
                 x=x,
                 y=y,
-                nb_line=line
+                line_number=line
             )
 
         return hub
 
     @staticmethod
     def create_connection(string: str, line: int) -> Connection:
+        """Parses a connection definition string and creates a
+        Connection instance.
+
+        Args:
+            string (str): The raw string defining the connection.
+            line (int): The line number in the source file.
+
+        Returns:
+            Connection: The instantiated Connection object.
+
+        Raises:
+            ValueError: If the connection format is invalid.
+        """
         a: str
         b: str
         key: str
@@ -288,9 +379,11 @@ class ParseMaps():
                 raise ValueError("[CONNECTION] Invalid arguments "
                                  f"line → {line}")
             a, b = data_list[0].split("-", 1)
-            connection = Connection(connection_a=a,
-                                    connection_b=b,
-                                    nb_line=line)
+            connection: Connection = Connection(
+                connection_a=a,
+                connection_b=b,
+                line_number=line
+            )
             option: str = (
                 string[string.index("[") + 1: string.index("]")].strip())
             for item in option.split():
@@ -322,11 +415,27 @@ class ParseMaps():
             a, b = string.split("-", 1)
             connection = Connection(connection_a=a,
                                     connection_b=b,
-                                    nb_line=line)
+                                    line_number=line)
         return connection
 
     @staticmethod
     def parse(file_name: str) -> Global:
+        """Parses a map file and constructs the global map model.
+
+        Reads the file line by line, identifies drones, hubs, and connections,
+        and constructs the corresponding objects. Finally, it validates the
+        entire structure using the Global Pydantic model.
+
+        Args:
+            file_name (str): The path to the map file to parse.
+
+        Returns:
+            Global: The validated global map model.
+
+        Raises:
+            ValueError: If the file is not found, cannot be read,
+            or fails validation.
+        """
         hub_list: list[Hub] = []
         connection_list: list[Connection] = []
         hub_start: Start | None = None
@@ -350,15 +459,15 @@ class ParseMaps():
                                              f"line → {i + 1}")
                         data = line.split(":", 1)[1].strip()
                         try:
-                            nb_drone = int(data)
+                            drone_count = int(data)
                         except ValueError:
                             raise ValueError("[DRONE] invalid int "
                                              f"'{data}' line → {i + 1}")
-                        if nb_drone < 1:
-                            raise ValueError("[DRONE] nb_drone "
+                        if drone_count < 1:
+                            raise ValueError("[DRONE] drone_count "
                                              "must be >= 1 "
                                              f"line → {i + 1}")
-                        drone = Drone(nb_drone=nb_drone, nb_line=i+1)
+                        drone = Drone(drone_count=drone_count, line_number=i+1)
                     elif index == "start_hub":
                         start_flag += 1
                         if start_flag > 1:

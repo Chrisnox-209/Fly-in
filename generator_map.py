@@ -2,7 +2,9 @@ import math
 import random
 import warnings
 from enum import Enum
-from typing import Any, cast
+from typing import cast
+from parser import Global
+from structure import Hub, Connection, Node
 
 import pygame
 from pygame.font import Font
@@ -15,6 +17,7 @@ warnings.filterwarnings(
 
 
 class HubColor(Enum):
+    """Enumeration of predefined hub colors and their corresponding RGB values."""
     YELLOW = (255, 255, 0)
     GREY = (128, 128, 128)
     RED = (255, 0, 0)
@@ -46,21 +49,47 @@ class HubColor(Enum):
 
 
 class VisualNode(pygame.sprite.Sprite):
+    """Represents a visual hub or node drawn on the simulation grid.
+
+    Attributes:
+        dict_x (dict[int, int]): Dictionary for logical to visual X conversion.
+        dict_y (dict[int, int]): Dictionary for logical to visual Y conversion.
+        name (str): The name of the node.
+        zone_type (str): The node's special zone type.
+        capacity (int): Maximum drone capacity.
+        radius (int): Visually calculated radius based on capacity.
+        image (pygame.Surface): The generated sprite surface.
+        rect (pygame.Rect): The sprite's rectangular bounds.
+    """
+
     def __init__(
         self,
         x: int,
         y: int,
         name: str,
         color: pygame.Surface | pygame.Color | tuple[int, int, int],
-        dict_x: dict[str, int],
-        dict_y: dict[str, int],
+        dict_x: dict[int, int],
+        dict_y: dict[int, int],
         base_radius: float,
         capacity: int,
         zone_type: str = "normal"
     ) -> None:
+        """Initializes a VisualNode sprite.
+
+        Args:
+            x (int): Logical X grid coordinate.
+            y (int): Logical Y grid coordinate.
+            name (str): Name identifier for the node.
+            color (pygame.Surface | pygame.Color | tuple[int, int, int]): The node's color.
+            dict_x (dict[int, int]): X-coordinate mappings.
+            dict_y (dict[int, int]): Y-coordinate mappings.
+            base_radius (float): Base radius factor for scaling.
+            capacity (int): The drone capacity limit.
+            zone_type (str, optional): The zone designation. Defaults to "normal".
+        """
         super().__init__()
-        self.dict_x: dict[str, int] = dict_x
-        self.dict_y: dict[str, int] = dict_y
+        self.dict_x: dict[int, int] = dict_x
+        self.dict_y: dict[int, int] = dict_y
         self.name: str = name
         self.zone_type: str = zone_type
         self.capacity: int = capacity
@@ -142,18 +171,43 @@ class VisualNode(pygame.sprite.Sprite):
 
 
 class VisualDrone(pygame.sprite.Sprite):
+    """Represents a flying drone animated on the Pygame screen.
+
+    Handles movement interpolation between hubs, sprite animation (propellers),
+    and logic for determining the current destination based on the flight plan.
+
+    Attributes:
+        name (str): Identifier for the drone.
+        flight_plan (list[str]): Sequential list of hub names the drone visits.
+        step (int): Current index in the flight plan.
+        current_frame (float): Animation frame progress for the current movement.
+        sprites (list[pygame.Surface]): Frames for the drone animation.
+    """
     def __init__(
         self,
         name: str,
         x: float,
         y: float,
-        dict_x: dict[str, int],
-        dict_y: dict[str, int],
+        dict_x: dict[int, int],
+        dict_y: dict[int, int],
         radius: int,
         flight_plan: list[str],
         hub_info: dict[str, tuple[int, int]],
         step: int = 0
     ) -> None:
+        """Initializes the VisualDrone sprite.
+
+        Args:
+            name (str): Identifier for the drone.
+            x (float): Initial x-coordinate.
+            y (float): Initial Y coordinate.
+            dict_x (dict[int, int]): Node X-coordinate reference table.
+            dict_y (dict[int, int]): Node Y-coordinate reference table.
+            radius (int): Base size radius.
+            flight_plan (list[str]): Planned hubs to visit turn-by-turn.
+            hub_info (dict[str, tuple[int, int]]): Coordinates for all hubs.
+            step (int, optional): Initial flight plan index. Defaults to 0.
+        """
         super().__init__()
         drone_images: list[list[str]] = [
             ["assets/gold-1.png", "assets/gold-2.png",
@@ -167,8 +221,8 @@ class VisualDrone(pygame.sprite.Sprite):
             ["assets/yellow-1.png", "assets/yellow-2.png",
              "assets/yellow-3.png", "assets/yellow-4.png"],
         ]
-        self.dict_x: dict[str, int] = dict_x
-        self.dict_y: dict[str, int] = dict_y
+        self.dict_x: dict[int, int] = dict_x
+        self.dict_y: dict[int, int] = dict_y
         self.name: str = name
         self.flight_plan: list[str] = flight_plan
         self.step: int = step
@@ -205,6 +259,12 @@ class VisualDrone(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(original_image, self.angle)
 
     def set_angle(self, target_x: float, target_y: float) -> None:
+        """Calculates and sets the rotation angle to face the target destination.
+
+        Args:
+            target_x (float): Target X-coordinate.
+            target_y (float): Target Y-coordinate.
+        """
         dx: float = target_x - self.x
         dy: float = target_y - self.y
         if dx == 0.0 and dy == 0.0:
@@ -215,6 +275,11 @@ class VisualDrone(pygame.sprite.Sprite):
         self.angle = calculated_angle + offset
 
     def update(self) -> None:
+        """Updates the drone's position, rotation, and animation frame.
+
+        Calculates linear interpolation between the current hub and the next hub
+        based on the flight plan and frames per turn.
+        """
         if self.step >= len(self.flight_plan):
             self.propellers = 0.0
             return
@@ -265,6 +330,14 @@ class VisualDrone(pygame.sprite.Sprite):
 
 
 class Buttom_Gm:
+    """A simple clickable button used in the game's simulation finish screen.
+
+    Attributes:
+        rect (pygame.Rect): Rectangular boundaries of the button.
+        text (str): The label displayed on the button.
+        color (tuple[int, int, int]): Background color RGB.
+        font (Font): Pygame font for the label.
+    """
     def __init__(
         self,
         x: int,
@@ -274,6 +347,16 @@ class Buttom_Gm:
         text: str,
         color: tuple[int, int, int]
     ) -> None:
+        """Initializes the Button.
+
+        Args:
+            x (int): X-coordinate.
+            y (int): Y-coordinate.
+            width (int): Button width.
+            height (int): Button height.
+            text (str): Label text.
+            color (tuple[int, int, int]): Background color.
+        """
         self.rect: pygame.Rect = pygame.Rect(x, y, width, height)
         self.text: str = text
         self.color: tuple[int, int, int] = color
@@ -295,7 +378,23 @@ class Buttom_Gm:
 
 
 class GraphRenderer:
-    def __init__(self, map_data: Any) -> None:
+    """Handles the rendering of the simulation map, hubs, connections, and drones.
+
+    Uses Pygame to draw a dynamic, interactive map of the entire network.
+
+    Attributes:
+        map_data (Global): Parsed map definition.
+        screen_width (int): Target width for the Pygame window.
+        screen_height (int): Target height for the Pygame window.
+        all_sprites (pygame.sprite.Group): Group of all VisualNodes.
+        drones_sprites (pygame.sprite.Group): Group of all VisualDrones.
+    """
+    def __init__(self, map_data: Global) -> None:
+        """Initializes the GraphRenderer with the simulation map data.
+
+        Args:
+            map_data (Global): The parsed network data.
+        """
         pygame.init()
         self.screen_width: int = 2832
         self.screen_height: int = 1504
@@ -309,12 +408,12 @@ class GraphRenderer:
         pygame.display.set_icon(icon)
         pygame.display.set_caption("Fly_In")
 
-        self.map_data: Any = map_data
+        self.map_data: Global = map_data
         self.all_sprites: Group[VisualNode] = pygame.sprite.Group()
         self.drones_sprites: Group[VisualDrone] = pygame.sprite.Group()
 
-        self.dict_x: dict[str, int]
-        self.dict_y: dict[str, int]
+        self.dict_x: dict[int, int] = {}
+        self.dict_y: dict[int, int] = {}
         self.dict_x, self.dict_y = self.calculate_xy_coordinates()
 
         self.hub_info: dict[str, tuple[int, int]] = {}
@@ -348,7 +447,7 @@ class GraphRenderer:
 
     def create_hub(
         self,
-        hub_data: Any,
+        hub_data: Node,  # from structure.py
         min_x: int,
         max_y: int,
         pos_x: float,
@@ -402,7 +501,7 @@ class GraphRenderer:
 
     def draw_connections(self, surface: pygame.Surface) -> None:
         font: pygame.font.Font = pygame.font.SysFont("arial", 20, bold=True)
-        connection: Any
+        connection: 'Connection'  # from structure.py
         for connection in self.map_data.glb_connection:
             start_x: int = self.hub_info[connection.connection_a][0]
             start_y: int = self.hub_info[connection.connection_a][1]
@@ -439,10 +538,10 @@ class GraphRenderer:
     def draw_drones(self, surface: pygame.Surface) -> None:
         self.drones_sprites.draw(surface)
 
-    def calculate_xy_coordinates(self) -> tuple[dict[str, int],
-                                                dict[str, int]]:
-        dict_y: dict[str, int] = {}
-        dict_x: dict[str, int] = {}
+    def calculate_xy_coordinates(self) -> tuple[dict[int, int],
+                                                dict[int, int]]:
+        dict_y: dict[int, int] = {}
+        dict_x: dict[int, int] = {}
 
         dict_x[self.map_data.glb_start.id] = self.map_data.glb_start.x
         dict_y[self.map_data.glb_start.id] = self.map_data.glb_start.y
@@ -450,7 +549,7 @@ class GraphRenderer:
         dict_x[self.map_data.glb_end.id] = self.map_data.glb_end.x
         dict_y[self.map_data.glb_end.id] = self.map_data.glb_end.y
 
-        hub: Any
+        hub: 'Hub'  # from structure.py
         for hub in self.map_data.glb_hub:
             dict_x[hub.id] = hub.x
             dict_y[hub.id] = hub.y

@@ -1,7 +1,7 @@
 import cv2  # type: ignore[import-untyped, unused-ignore]
 import os
 import sys
-from typing import Any, Optional
+from typing import Optional, Any
 import pygame
 from pygame.font import Font
 
@@ -13,7 +13,8 @@ class Button:
         rect (pygame.Rect): The rectangular area of the button.
         text (str): The text displayed on the button.
         font (Font): The Pygame font used to render the text.
-        action_value (Any): A specific value tied to the button's action.
+        action_value (Optional[str]): A specific value tied
+        to the button's action.
         color_normal (tuple[int, int, int]): The button's default color.
         color_hover (tuple[int, int, int]): The color when hovered.
         thickness (int): The thickness of the button's border.
@@ -27,7 +28,7 @@ class Button:
         height: int,
         text: str,
         font: Font,
-        action_value: Any = None,
+        action_value: Optional[str] = None,
     ) -> None:
         """Initializes the Button instance.
 
@@ -38,13 +39,14 @@ class Button:
             height (int): The height of the button.
             text (str): The text to display.
             font (Font): The font object for rendering the text.
-            action_value (Any, optional): Data associated with the button.
+            action_value (Optional[str], optional):
+            Data associated with the button.
                 Defaults to None.
         """
         self.rect: pygame.Rect = pygame.Rect(x, y, width, height)
         self.text: str = text
         self.font: Font = font
-        self.action_value: Any = action_value
+        self.action_value: Optional[str] = action_value
 
         self.color_normal: tuple[int, int, int] = (60, 60, 60)
         self.color_hover: tuple[int, int, int] = (255, 255, 255)
