@@ -1,4 +1,3 @@
-import math
 import heapq
 from parser import Global
 from structure import Hub, Connection
@@ -14,7 +13,8 @@ class TrafficController:
         """Initializes the TrafficController with the parsed map data.
 
         Args:
-            map_data (Global): The parsed Global map model containing all hubs and connections.
+            map_data (Global): The parsed Global map model containing
+            all hubs and connections.
         """
         self.map_data: Global = map_data
         self.hub_details: dict[str, tuple[int, str, float, float]] = {}
@@ -117,21 +117,6 @@ class TrafficController:
                         )
 
     @staticmethod
-    def calculate_score(xa: float, ya: float, xb: float, yb: float) -> float:
-        """Calculates the Euclidean distance between two points.
-
-        Args:
-            xa (float): X-coordinate of the first point.
-            ya (float): Y-coordinate of the first point.
-            xb (float): X-coordinate of the second point.
-            yb (float): Y-coordinate of the second point.
-
-        Returns:
-            float: The straight-line distance.
-        """
-        return math.sqrt((xb - xa) ** 2 + (yb - ya) ** 2)
-
-    @staticmethod
     def get_zone_score(zone: str) -> int:
         """Determines the traversal time penalty for a given zone type.
 
@@ -139,7 +124,8 @@ class TrafficController:
             zone (str): The zone string (e.g., 'blocked', 'restricted').
 
         Returns:
-            int: The number of turns required to traverse the zone (0 if blocked).
+            int: The number of turns required to traverse the
+            zone (0 if blocked).
         """
         if zone == "blocked":
             return 0
@@ -152,14 +138,18 @@ class TrafficController:
     def find_path(self) -> tuple[list[str], list[tuple[str, int]]] | None:
         """Finds the optimal path for a single drone avoiding collisions.
 
-        Uses the A* algorithm over a time-expanded state graph to ensure the drone
-        reaches the destination without exceeding hub or connection capacities at
+        Uses the A* algorithm over a time-expanded state
+        graph to ensure the drone
+        reaches the destination without exceeding hub or
+        connection capacities at
         any given turn.
 
         Returns:
             tuple[list[str], list[tuple[str, int]]] | None:
-                A tuple containing the list of hubs visited per turn, and a list
-                of the state transitions (hub, turn), or None if no path exists.
+                A tuple containing the list of hubs visited per turn,
+                and a list
+                of the state transitions (hub, turn),
+                or None if no path exists.
         """
         waiting_list: list[tuple[float, float, str, int]] = []
         initial_state: tuple[str, int] = (self.start, 0)
@@ -247,7 +237,8 @@ class TrafficController:
                 if next_hub != self.start:
                     t: int
                     for t in range(current_turn + 1, end_turn + 1):
-                        drones_count_t: int = self.flight_log.get((next_hub, t), 0)
+                        drones_count_t: int = self.flight_log.get((
+                            next_hub, t), 0)
                         if drones_count_t >= capacity_max:
                             hub_full = True
                             break
@@ -274,8 +265,10 @@ class TrafficController:
                     if next_hub == current_hub
                     else 0.0
                 )
-                h_next: float = self.distance_to_end.get(next_hub, float('inf'))
-                h_curr: float = self.distance_to_end.get(current_hub, float('inf'))
+                h_next: float = self.distance_to_end.get(next_hub,
+                                                         float('inf'))
+                h_curr: float = self.distance_to_end.get(current_hub,
+                                                         float('inf'))
                 backtrack_penalty: float = 2.0 if h_next > h_curr else 0.0
 
                 next_g: float = (
@@ -300,11 +293,14 @@ class TrafficController:
     def get_traffic_plan(self) -> dict[str, list[str]]:
         """Generates flight plans for all drones in the simulation.
 
-        Iterates over the total number of drones and sequentially assigns them paths
-        while updating the global flight and link logs to prevent future collisions.
+        Iterates over the total number of drones and sequentially
+        assigns them paths
+        while updating the global flight and link logs to prevent
+        future collisions.
 
         Returns:
-            dict[str, list[str]]: A dictionary mapping each drone ID (e.g., 'D0')
+            dict[str, list[str]]: A dictionary mapping each
+            drone ID (e.g., 'D0')
                 to its sequence of hub visits turn-by-turn.
 
         Raises:
@@ -317,7 +313,8 @@ class TrafficController:
         i: int
         for i in range(self.map_data.glb_drones.drone_count):
             drone_id: str = f"D{i}"
-            res: tuple[list[str], list[tuple[str, int]]] | None = self.find_path()
+            res: tuple[list[str], list[
+                tuple[str, int]]] | None = self.find_path()
             if res is None:
                 raise ValueError("Impossible to resolve map")
 

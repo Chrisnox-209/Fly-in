@@ -12,7 +12,8 @@ from pydantic import (
 class Global(BaseModel):
     """Pydantic model representing the global parsed map structure.
 
-    Contains all the entities parsed from a map file, including drones, start/end hubs,
+    Contains all the entities parsed from a map file,
+    including drones, start/end hubs,
     intermediate hubs, and connections, along with validation logic.
     """
     model_config: ClassVar[ConfigDict] = ConfigDict(
@@ -235,7 +236,8 @@ class Global(BaseModel):
 
 
 class ParseMaps():
-    """Utility class for parsing and constructing the network map from text files."""
+    """Utility class for parsing and constructing the
+    network map from text files."""
 
     @staticmethod
     def create_hub(type_obj: Any, string: str, line: int, id: int) -> Any:

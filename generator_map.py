@@ -17,7 +17,9 @@ warnings.filterwarnings(
 
 
 class HubColor(Enum):
-    """Enumeration of predefined hub colors and their corresponding RGB values."""
+    """Enumeration of predefined hub colors and their corresponding
+    RGB values."""
+
     YELLOW = (255, 255, 0)
     GREY = (128, 128, 128)
     RED = (255, 0, 0)
@@ -80,12 +82,14 @@ class VisualNode(pygame.sprite.Sprite):
             x (int): Logical X grid coordinate.
             y (int): Logical Y grid coordinate.
             name (str): Name identifier for the node.
-            color (pygame.Surface | pygame.Color | tuple[int, int, int]): The node's color.
+            color (pygame.Surface | pygame.Color | tuple[int, int, int]):
+            The node's color.
             dict_x (dict[int, int]): X-coordinate mappings.
             dict_y (dict[int, int]): Y-coordinate mappings.
             base_radius (float): Base radius factor for scaling.
             capacity (int): The drone capacity limit.
-            zone_type (str, optional): The zone designation. Defaults to "normal".
+            zone_type (str, optional): The zone designation.
+            Defaults to "normal".
         """
         super().__init__()
         self.dict_x: dict[int, int] = dict_x
@@ -180,7 +184,8 @@ class VisualDrone(pygame.sprite.Sprite):
         name (str): Identifier for the drone.
         flight_plan (list[str]): Sequential list of hub names the drone visits.
         step (int): Current index in the flight plan.
-        current_frame (float): Animation frame progress for the current movement.
+        current_frame (float): Animation frame
+        progress for the current movement.
         sprites (list[pygame.Surface]): Frames for the drone animation.
     """
     def __init__(
@@ -259,7 +264,8 @@ class VisualDrone(pygame.sprite.Sprite):
         self.image = pygame.transform.rotate(original_image, self.angle)
 
     def set_angle(self, target_x: float, target_y: float) -> None:
-        """Calculates and sets the rotation angle to face the target destination.
+        """Calculates and sets the rotation angle
+        to face the target destination.
 
         Args:
             target_x (float): Target X-coordinate.
@@ -277,7 +283,8 @@ class VisualDrone(pygame.sprite.Sprite):
     def update(self) -> None:
         """Updates the drone's position, rotation, and animation frame.
 
-        Calculates linear interpolation between the current hub and the next hub
+        Calculates linear interpolation between
+        the current hub and the next hub
         based on the flight plan and frames per turn.
         """
         if self.step >= len(self.flight_plan):
@@ -378,7 +385,8 @@ class Buttom_Gm:
 
 
 class GraphRenderer:
-    """Handles the rendering of the simulation map, hubs, connections, and drones.
+    """Handles the rendering of the simulation map,
+    hubs, connections, and drones.
 
     Uses Pygame to draw a dynamic, interactive map of the entire network.
 

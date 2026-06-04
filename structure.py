@@ -9,10 +9,13 @@ class Node:
         id (int): Numerical ID for internal logic.
         x (int): The x-coordinate of the node.
         y (int): The y-coordinate of the node.
-        line_number (int): The line number in the source file where this node was defined.
+        line_number (int): The line number in the source file where
+        this node was defined.
         color (Optional[str]): Color assigned to the node, if any.
-        max_drones (int): Maximum number of drones that can be present on this node simultaneously.
-        zone (str): Zone type affecting routing (e.g., 'normal', 'blocked', 'priority', 'restricted').
+        max_drones (int): Maximum number of drones that can be
+        present on this node simultaneously.
+        zone (str): Zone type affecting routing (e.g., 'normal',
+        'blocked', 'priority', 'restricted').
     """
 
     def __init__(self, name: str, id: int, x: int, y: int,
@@ -71,7 +74,8 @@ class Drone:
         Args:
             drone_count (int): Total number of drones.
             line_number (int): Line number in the parsed file.
-            position (Optional[int], optional): Initial position index. Defaults to None.
+            position (Optional[int], optional): Initial position index.
+            Defaults to None.
         """
         self.drone_count: int = drone_count
         self.line_number: int = line_number
@@ -85,7 +89,8 @@ class Connection:
         connection_a (str): The name of the first hub.
         connection_b (str): The name of the second hub.
         line_number (int): The line number in the parsed file.
-        max_link_capacity (int): The maximum number of drones that can traverse this connection per turn.
+        max_link_capacity (int): The maximum number of drones that can
+        traverse this connection per turn.
     """
 
     def __init__(self, connection_a: str, connection_b: str,
@@ -96,7 +101,8 @@ class Connection:
             connection_a (str): Name of the first connected node.
             connection_b (str): Name of the second connected node.
             line_number (int): Line number in the parsed file.
-            max_link_capacity (int, optional): Drone capacity per turn. Defaults to 1.
+            max_link_capacity (int, optional): Drone capacity per turn.
+            Defaults to 1.
         """
         self.connection_a: str = connection_a
         self.connection_b: str = connection_b
