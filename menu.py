@@ -203,6 +203,7 @@ class Menu:
             return False, f"[Error]: Directory '{path}' not found!"
 
         files: list[str] = [f for f in os.listdir(path) if f.endswith(".txt")]
+        files.sort()
 
         if not files:
             return False, f"[Error]: No .txt files found in '{category_name}'!"

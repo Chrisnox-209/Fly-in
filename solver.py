@@ -59,33 +59,48 @@ class TrafficController:
             self.link_capacities[(node_a, node_b)] = capacity
             self.link_capacities[(node_b, node_a)] = capacity
 
-            prev_node: str = node_a
-            i: int
-            for i in range(1, capacity + 1):
-                wp_name: str = f"wp_{node_a}_{node_b}_{i}"
-                fraction: float = i / (capacity + 1)
+            wp_name: str = f"wp_{node_a}_{node_b}"
+            self.hub_details[wp_name] = (
+                capacity,
+                "priority",
+                (x_a + x_b) / 2.0,
+                (y_a + y_b) / 2.0
+            )
+            self.address_book[wp_name] = set()
 
-                mx: float = x_a + (x_b - x_a) * fraction
-                my: float = y_a + (y_b - y_a) * fraction
+            self.generated_waypoints.append(
+                (wp_name, node_a, node_b, 0.5)
+            )
 
-                self.hub_details[wp_name] = (1, "priority", mx, my)
-                self.address_book[wp_name] = set()
+            self.address_book[node_a].add(wp_name)
+            self.address_book[wp_name].add(node_a)
+            self.link_capacities[(node_a, wp_name)] = capacity
+            self.link_capacities[(wp_name, node_a)] = capacity
 
-                self.generated_waypoints.append(
-                    (wp_name, node_a, node_b, fraction)
-                )
+            self.address_book[wp_name].add(node_b)
+            self.address_book[node_b].add(wp_name)
+            self.link_capacities[(wp_name, node_b)] = capacity
+            self.link_capacities[(node_b, wp_name)] = capacity
 
-                self.address_book[prev_node].add(wp_name)
-                self.address_book[wp_name].add(prev_node)
-                self.link_capacities[(prev_node, wp_name)] = 1
-                self.link_capacities[(wp_name, prev_node)] = 1
-
-                prev_node = wp_name
-
-            self.address_book[prev_node].add(node_b)
-            self.address_book[node_b].add(prev_node)
-            self.link_capacities[(prev_node, node_b)] = 1
-            self.link_capacities[(node_b, prev_node)] = 1
+        # Dijkstra to find shortest path distance from self.end to all hubs
+        self.distance_to_end: dict[str, float] = {}
+        dijkstra_queue: list[tuple[float, str]] = [(0.0, self.end)]
+        while dijkstra_queue:
+            dist, node = heapq.heappop(dijkstra_queue)
+            if node in self.distance_to_end:
+                continue
+            self.distance_to_end[node] = dist
+            for neighbor in self.address_book[node]:
+                if neighbor not in self.distance_to_end:
+                    # In forward path, the drone enters 'node' from 'neighbor'.
+                    # So the cost is the zone_score of 'node'.
+                    zone_score = self.get_zone_score(
+                        self.hub_details[node][1]
+                    )
+                    if zone_score > 0:
+                        heapq.heappush(
+                            dijkstra_queue, (dist + zone_score, neighbor)
+                        )
 
     @staticmethod
     def calculate_score(xa: float, ya: float, xb: float, yb: float) -> float:
@@ -96,32 +111,31 @@ class TrafficController:
         if zone == "blocked":
             return 0
         if zone == "restricted":
-            return 3
+            return 2
         if zone == "priority":
             return 1
-        return 2
+        return 1
 
     def find_path(self) -> tuple[list[str], list[tuple[str, int]]] | None:
-        waiting_list: list[tuple[float, str, int]] = []
+        waiting_list: list[tuple[float, float, str, int]] = []
         initial_state: tuple[str, int] = (self.start, 0)
 
         origin: dict[tuple[str, int], tuple[str, int] | None] = {
             initial_state: None
         }
-        g_score: dict[tuple[str, int], int] = {initial_state: 0}
+        g_score: dict[tuple[str, int], float] = {initial_state: 0.0}
 
-        heapq.heappush(waiting_list, (0.0, self.start, 0))
-
-        end_pos: tuple[float, float] = (
-            self.hub_details[self.end][2],
-            self.hub_details[self.end][3]
-        )
+        heapq.heappush(waiting_list, (0.0, 0.0, self.start, 0))
 
         while waiting_list:
-            _, current_hub, current_turn = heapq.heappop(waiting_list)
+            _, g_val, current_hub, current_turn = heapq.heappop(waiting_list)
+
+            if current_turn > 2000:
+                return None
+
             current_state: tuple[str, int] = (current_hub, current_turn)
 
-            if current_turn > g_score.get(current_state, float('inf')):
+            if g_val > g_score.get(current_state, float('inf')):
                 continue
 
             previous_hub: str | None = None
@@ -181,11 +195,15 @@ class TrafficController:
                 next_state: tuple[str, int] = (next_hub, end_turn)
 
                 capacity_max: int = self.hub_details[next_hub][0]
-                hub_full: bool = self.flight_log.get(
-                    (next_hub, end_turn), 0
-                ) >= capacity_max
+                hub_full: bool = False
+                if next_hub != self.start:
+                    for t in range(current_turn + 1, end_turn + 1):
+                        nb_drones_t = self.flight_log.get((next_hub, t), 0)
+                        if nb_drones_t >= capacity_max:
+                            hub_full = True
+                            break
 
-                if hub_full and next_hub != self.start:
+                if hub_full:
                     continue
 
                 if next_hub != current_hub:
@@ -193,7 +211,7 @@ class TrafficController:
                         current_hub, next_hub
                     )]
                     route_full: bool = False
-                    for t in range(current_turn, end_turn + 1):
+                    for t in range(current_turn, end_turn):
                         if self.link_log.get((current_hub, next_hub, t),
                                              0) >= route_cap:
                             route_full = True
@@ -201,28 +219,30 @@ class TrafficController:
                     if route_full:
                         continue
 
-                if next_state not in g_score or end_turn < g_score[next_state]:
-                    g_score[next_state] = end_turn
+                wait_penalty: float = (
+                    1e-6
+                    if next_hub == current_hub
+                    else 0.0
+                )
+                h_next = self.distance_to_end.get(next_hub, float('inf'))
+                h_curr = self.distance_to_end.get(current_hub, float('inf'))
+                backtrack_penalty: float = 2.0 if h_next > h_curr else 0.0
+
+                next_g = (
+                    g_val + zone_score + wait_penalty + backtrack_penalty
+                )
+
+                if next_state not in g_score or next_g < g_score[next_state]:
+                    g_score[next_state] = next_g
                     origin[next_state] = current_state
 
-                    pos: tuple[float, float] = (
-                        self.hub_details[next_hub][2],
-                        self.hub_details[next_hub][3]
-                    )
-
-                    score_h: float = self.calculate_score(
-                        pos[0], pos[1], end_pos[0], end_pos[1]
-                    )
-
-                    wait_penalty: float = (
-                        1e-6
-                        if next_hub == current_hub and next_hub != self.start
-                        else 0.0
+                    score_h: float = self.distance_to_end.get(
+                        next_hub, float('inf')
                     )
 
                     heapq.heappush(
                         waiting_list,
-                        (end_turn + score_h + wait_penalty, next_hub, end_turn)
+                        (next_g + score_h, next_g, next_hub, end_turn)
                     )
 
         return None
@@ -237,8 +257,8 @@ class TrafficController:
             result = self.find_path()
 
             if result is None:
-                flight_plan[drone] = [self.start]
-                continue
+                raise ValueError("[ERROR]: (unsolvable) [MAP] map impossible"
+                                 "to solve")
 
             path, path_states = result
             flight_plan[drone] = path
@@ -249,18 +269,15 @@ class TrafficController:
                 )
 
             for j in range(len(path_states) - 1):
-                cur_node: str = path_states[j][0]
-                cur_t: int = path_states[j][1]
-                nxt_node: str = path_states[j + 1][0]
-                nxt_t: int = path_states[j + 1][1]
+                cur_node, cur_t = path_states[j]
+                nxt_node, nxt_t = path_states[j + 1]
 
                 if cur_node != nxt_node:
-                    for t in range(cur_t, nxt_t + 1):
+                    for t in range(cur_t, nxt_t):
                         self.link_log[(cur_node, nxt_node, t)] = (
                             self.link_log.get((cur_node, nxt_node, t), 0) + 1
                         )
                         self.link_log[(nxt_node, cur_node, t)] = (
                             self.link_log.get((nxt_node, cur_node, t), 0) + 1
                         )
-
         return flight_plan
