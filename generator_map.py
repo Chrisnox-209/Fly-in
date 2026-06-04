@@ -138,6 +138,9 @@ class VisualNode(pygame.sprite.Sprite):
 
         self.rect: pygame.Rect = self.image.get_rect()
         self.rect.center = (x, y)
+        if self.radius < 21:
+            raise ValueError("[ERROR] (MAP) "
+                             f"radius too small -> {self.radius}")
 
     def draw_zone_badge(self, radius: int) -> None:
         if self.zone_type == "normal":
