@@ -2,7 +2,7 @@
 
 *This project has been created as part of the 42 curriculum by cpietrza.*
 
-==GIF_MENU==
+<img src="assets/menu.gif">
 
 ---
 
