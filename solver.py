@@ -25,6 +25,8 @@ class TrafficController:
 
         self.flight_log: dict[tuple[str, int], int] = {}
         self.link_log: dict[tuple[str, str, int], int] = {}
+        self.connection_log: dict[tuple[tuple[str, str], int], int] = {}
+        self.parent_conn: dict[str | tuple[str, str], tuple[str, str]] = {}
 
         self.generated_waypoints: list[tuple[str, str, str, float]] = []
 
@@ -70,6 +72,10 @@ class TrafficController:
             self.link_capacities[(node_a, node_b)] = capacity
             self.link_capacities[(node_b, node_a)] = capacity
 
+            conn_key: tuple[str, str] = (min(node_a, node_b), max(node_a, node_b))
+            self.parent_conn[(node_a, node_b)] = conn_key
+            self.parent_conn[(node_b, node_a)] = conn_key
+
             wp_name: str = f"wp_{node_a}_{node_b}"
             self.hub_details[wp_name] = (
                 capacity,
@@ -92,6 +98,12 @@ class TrafficController:
             self.address_book[node_b].add(wp_name)
             self.link_capacities[(wp_name, node_b)] = capacity
             self.link_capacities[(node_b, wp_name)] = capacity
+
+            self.parent_conn[(node_a, wp_name)] = conn_key
+            self.parent_conn[(wp_name, node_a)] = conn_key
+            self.parent_conn[(wp_name, node_b)] = conn_key
+            self.parent_conn[(node_b, wp_name)] = conn_key
+            self.parent_conn[wp_name] = conn_key
 
         # Dijkstra to find shortest path distance from self.end to all hubs
         self.distance_to_end: dict[str, float] = {}
@@ -213,7 +225,8 @@ class TrafficController:
             possible_neighbors: list[str] = list(
                 self.address_book[current_hub]
             )
-            possible_neighbors.append(current_hub)
+            if not current_hub.startswith("wp_"):
+                possible_neighbors.append(current_hub)
 
             for next_hub in possible_neighbors:
                 if next_hub == previous_hub:
@@ -250,11 +263,18 @@ class TrafficController:
                     route_cap: int = self.link_capacities[(
                         current_hub, next_hub
                     )]
+                    conn_key_opt: tuple[str, str] | None = self.parent_conn.get(
+                        (current_hub, next_hub)
+                    )
                     route_full: bool = False
                     tt: int
                     for tt in range(current_turn, end_turn):
                         if self.link_log.get((current_hub, next_hub, tt),
                                              0) >= route_cap:
+                            route_full = True
+                            break
+                        if conn_key_opt and self.connection_log.get(
+                                (conn_key_opt, tt), 0) >= route_cap:
                             route_full = True
                             break
                     if route_full:
@@ -309,6 +329,7 @@ class TrafficController:
         flight_plan: dict[str, list[str]] = {}
         self.flight_log.clear()
         self.link_log.clear()
+        self.connection_log.clear()
 
         i: int
         for i in range(self.map_data.glb_drones.drone_count):
@@ -346,4 +367,11 @@ class TrafficController:
                         self.link_log[(next_h, curr_h, tt)] = (
                             self.link_log.get((next_h, curr_h, tt), 0) + 1
                         )
+                        ck: tuple[str, str] | None = self.parent_conn.get(
+                            (curr_h, next_h)
+                        )
+                        if ck:
+                            self.connection_log[(ck, tt)] = (
+                                self.connection_log.get((ck, tt), 0) + 1
+                            )
         return flight_plan
