@@ -2,7 +2,7 @@
 
 *This project has been created as part of the 42 curriculum by cpietrza.*
 
-<img src="assets/menu.gif">
+<center><img src="assets/menu.gif"></center>
 
 ---
 
@@ -352,7 +352,7 @@ These shortcuts are available during simulation and are also displayed in the **
 
 ## 🎮 Simulation Demo
 
-==GIF_DEMO==
+<center><img src="assets/map-flyin.gif"></center>
 
 ---
 
