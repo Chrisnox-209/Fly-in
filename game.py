@@ -9,7 +9,7 @@ from menu import Menu
 from parser import Global, ParseMaps
 from generator_map import GraphRenderer, Buttom_Gm, VisualDrone, VisualNode
 from solver import TrafficController
-from convertisseur import GifConverter
+from converter import GifConverter
 from structure import Connection
 
 
