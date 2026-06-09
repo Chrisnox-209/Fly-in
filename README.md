@@ -15,7 +15,7 @@
 - [Map Format](#-map-format)
 - [Drone Fleet](#-drone-fleet)
 - [Keyboard Shortcuts](#-keyboard-shortcuts)
-- [Installation & Execution](#-installation--execution)
+- [Instructions](#-instructions)
 - [Makefile Commands](#-makefile-commands)
 - [Available Maps](#-available-maps)
 - [Resources](#-resources)
@@ -26,7 +26,7 @@
 
 **Fly-In** is a drone traffic simulation tool built as part of the 42 curriculum. The goal is to route a fleet of drones from a **start hub** to an **end hub** through a network of interconnected hubs and connections, while respecting capacity constraints at every step.
 
-The simulator automatically solves the routing problem and plays a real-time visual animation of all drone movements, including collisions avoidance, zone constraints, and congestion management.
+The simulator automatically solves the routing problem and plays a real-time visual animation of all drone movements, including collision avoidance, zone constraints, and congestion management.
 
 ### Key Features
 
@@ -34,165 +34,125 @@ The simulator automatically solves the routing problem and plays a real-time vis
 - 🤖 **Automatic solver** — A* pathfinding with time-expanded state space
 - 🎮 **Interactive visualizer** — real-time Pygame rendering with zoom, pan, and speed control
 - 🚫 **Zone types** — Normal, Priority, Restricted, and Blocked zones with different traversal costs
-- 📊 **Simulation output** — step-by-step console output in standardized format (VII.5)
+- 📊 **Simulation output** — step-by-step console output in standardized format (section VII.5 of the subject)
 - ✅ **Map validation** — full Pydantic validation with helpful error messages for invalid maps
 
 ---
 
 ## 🧠 Algorithm & Implementation
 
-### Pathfinding: Time-Expanded A\*
-
-The core of Fly-In is a **time-expanded A\*** algorithm implemented in [`solver.py`](solver.py).
-
----
-
-#### 🔷 The Problem
-
-Routing a single drone on a graph is trivial. The challenge here is routing **N drones simultaneously** while ensuring that:
-- No hub ever exceeds its `max_drones` capacity at any given turn
-- No connection ever exceeds its `max_link_capacity` at any given turn
-- No two drones collide or deadlock
-
-This turns a simple shortest-path problem into a **multi-agent time-constrained routing problem**.
+The solver is implemented in [`solver.py`](solver.py) as a single class: `TrafficController`.
+It works in **3 phases** to route all drones from start to end while respecting all constraints.
 
 ---
 
-#### 🔷 State Space: The Time Dimension
+### 🟦 Phase 1 — Reverse Dijkstra (Heuristic Precomputation)
 
-A standard A* operates on nodes: `state = hub`. It cannot reason about *when* a drone is somewhere.
+<center><img src="assets/phase1-reverse_Dijkstra_heuristic.png" width="700"></center>
 
-The time-expanded A* extends the state with a time dimension:
+**What it does:** Before finding any drone path, the solver runs a Dijkstra search starting from the **end hub** and going backwards through the entire graph.
+
+**Why:** This gives us, for every hub, the minimum number of turns needed to reach the destination. This value is stored in `distance_to_end` and used as the heuristic `h(s)` in A*. Because it uses real zone costs (not straight-line estimates), it never overestimates — making A* both optimal and efficient.
+
+**Code entry point:** `compute_dijkstra()` in `solver.py`.
+
+Each hub has a zone type that determines how many turns it costs to enter:
+
+| Zone       | Symbol | Cost | Meaning                          |
+|------------|--------|------|----------------------------------|
+| Normal     | —      | `1`  | Standard traversal               |
+| Priority   | `P`    | `1`  | Standard cost, preferred         |
+| Restricted | `!`    | `2`  | Requires 2 turns to pass through |
+| Blocked    | `X`    | `∞`  | Cannot be entered — skipped      |
+
+> This phase runs **once**, before any drone is planned. Its result is reused for every drone.
+
+---
+
+### 🟩 Phase 2 — Spatiotemporal A\* (Pathfinding)
+
+<center><img src="assets/phase2-spatiotemporal_A_star_algorithm.png" width="700"></center>
+
+**What it does:** For each drone, the solver finds the optimal path using A*. The key idea is that the state includes not just the hub, but also the current turn:
 
 ```
 state = (hub_name, turn)
 ```
 
-- **Initial state**: `(start_hub, 0)`  
-- **Goal**: any state `(end_hub, T)` for any turn `T`
+This lets the algorithm reason about *when* a drone is somewhere, not just *where*.
 
-This means the graph explored is not the original map graph but a **layered copy** of it — one layer per turn — where edges connect `(hub, t)` to `(neighbor, t + cost)`.
+**Initial state:** `(start_hub, 0)`
+**Goal:** any state `(end_hub, T)` for any turn `T`
 
----
-
-#### 🔷 Zone Costs
-
-Each hub has a zone type that defines how many turns a drone must spend traversing it:
-
-| Zone       | Symbol | Cost `c` | Meaning                            |
-|------------|--------|----------|------------------------------------|
-| Normal     | —      | `1`      | Standard traversal                 |
-| Priority   | `P`    | `1`      | Fast lane, standard cost           |
-| Restricted | `!`    | `2`      | Requires 2 turns to pass through   |
-| Blocked    | `X`    | `∞`      | Cannot be entered — skipped        |
-
-When a drone moves from hub `A` to hub `B` with zone cost `c`, the transition is:
+Each move creates a new state:
 
 ```
+# Moving from A to B with zone cost c:
 (A, t)  ──►  (B, t + c)
+
+# Waiting at A (not allowed on waypoints):
+(A, t)  ──►  (A, t + 1)
 ```
 
-If a drone **waits** at its current hub instead of moving:
+**Score formula:** `f(s) = g(s) + h(s)`
 
 ```
-(A, t)  ──►  (A, t + 1)   [wait penalty: +1e-6 to deprioritize waiting]
+g(s) = real cost so far
+     = g(parent) + zone_cost + wait_penalty + backtrack_penalty
+
+h(s) = estimated cost remaining
+     = distance_to_end[next_hub]  (from Phase 1)
 ```
 
----
+| Penalty             | Value  | When applied                                     |
+|---------------------|--------|--------------------------------------------------|
+| `wait_penalty`      | `1e-6` | Drone stays at the same hub                      |
+| `backtrack_penalty` | `2.0`  | Next hub is further from the goal than current   |
 
-#### 🔷 The A\* Score Formula
+**Helper functions used inside `compute_a_star()`:**
 
-For each candidate next state `(next_hub, end_turn)`, the total score used by A* is:
+- `get_previous_hub()` — finds the hub the drone came from, to avoid going back immediately
+- `get_possible_neighbors()` — lists all reachable next hubs (neighbors + wait option)
+- `is_hub_full()` — checks if the destination hub has capacity for the drone
+- `is_route_full()` — checks if the link between two hubs has capacity
+- `calculate_penalties()` — computes the wait and backtrack penalties
+- `reconstruct_path()` — traces back the full path once the end is reached
 
-```
-f(s) = g(s) + h(s)
-```
-
-Where:
-
-```
-g(s) = accumulated cost so far
-     = g(parent) + zone_cost(next_hub) + wait_penalty + backtrack_penalty
-
-h(s) = heuristic: estimated minimum cost from next_hub to end_hub
-     = distance_to_end[next_hub]   (precomputed by Dijkstra)
-```
-
-**Penalties applied to `g`:**
-
-| Penalty              | Value   | Applied when                                          |
-|----------------------|---------|-------------------------------------------------------|
-| `wait_penalty`       | `1e-6`  | Drone stays at the same hub (waiting)                 |
-| `backtrack_penalty`  | `2.0`   | `h(next_hub) > h(current_hub)` — moving away from goal|
-
-The backtrack penalty discourages the solver from exploring paths that move further from the goal without a good reason.
-
----
-
-#### 🔷 Heuristic: Backward Dijkstra
-
-Before routing any drone, the solver runs a **Dijkstra from the end hub** backwards through the graph to compute the minimum cost from every reachable hub to the goal:
-
-```
-distance_to_end[hub] = min cost to reach end_hub from hub
-```
-
-This gives an **admissible heuristic** (never overestimates) because it uses actual zone costs on the real graph — making A* both complete and optimal.
-
----
-
-#### 🔷 Capacity Constraints
-
-Two logs track occupancy across time:
-
-```python
-flight_log[(hub, turn)]          → number of drones at hub at that turn
-link_log[(hub_a, hub_b, turn)]   → number of drones on link A-B at that turn
-```
-
-Before adding `(next_hub, end_turn)` to the open set, the solver checks:
-
-```
-for t in [current_turn+1 .. end_turn]:
-    if flight_log[(next_hub, t)] >= max_drones(next_hub): BLOCKED
-
-for t in [current_turn .. end_turn-1]:
-    if link_log[(current_hub, next_hub, t)] >= max_link_capacity: BLOCKED
-```
-
-This ensures **no over-capacity state is ever explored**.
-
----
-
-#### 🔷 Sequential Multi-Drone Routing
-
-Drones are planned **one at a time** in order `D0, D1, D2, ...`.
-
-After each drone's path is found, its occupancy is **committed** to `flight_log` and `link_log`. The next drone then plans around all previously committed drones.
-
-This greedy sequential approach has complexity `O(N × A*)` instead of the exponential `O(A*^N)` of joint planning, while still finding valid (often optimal) solutions in practice.
-
----
-
-#### 🔷 Waypoints
-
-For each connection `A–B`, a virtual **waypoint** node `wp_A_B` is generated at the midpoint:
+**Waypoints:** For every connection `A–B`, a virtual intermediate node `wp_A_B` is created at the midpoint. This allows the solver to track drones that are *in transit* on a link separately from drones *at a hub*, enabling precise capacity checks on restricted zones that take 2 turns to cross.
 
 ```
 A  ──►  wp_A_B  ──►  B
 ```
 
-Waypoints serve two purposes:
-1. **Visual**: drones animate smoothly mid-flight on connections
-2. **Logical**: the solver can distinguish drones *in transit* from drones *at a hub*, allowing more precise capacity tracking
-
 ---
 
-#### 🔷 Safety Limit & Error Handling
+### 🟥 Phase 3 — Dynamic Constraints & Reservations
 
-- If a drone's A* search exceeds **turn 2000**, it returns `None` → `ValueError` is raised
-- Maps with blocked paths or insufficient capacity to route any drone also raise `ValueError`
-- The UI catches these errors and displays a readable message instead of crashing
+<center><img src="assets/phase3-dynamic_constraints_&_reservations.png" width="700"></center>
+
+**What it does:** This phase prevents collisions and manages multiple drones routing one after another.
+
+#### Capacity Tracking
+
+Two dictionaries track how many drones occupy each location at each turn:
+
+```python
+flight_log[(hub, turn)]           # how many drones are at this hub at this turn
+link_log[(hub_a, hub_b, turn)]    # how many drones are on this link at this turn
+connection_log[(conn_key, turn)]  # bidirectional link count (prevents double-booking)
+```
+
+Before exploring a move, the solver calls `is_hub_full()` and `is_route_full()` to reject any move that would exceed a capacity limit. This ensures **no invalid state is ever explored**.
+
+#### Sequential Drone Routing
+
+Drones are routed **one by one** in order `D0, D1, D2, ...`. After each drone's path is found by `compute_a_star()`, the function `get_traffic_plan()` commits its full path to `flight_log`, `link_log`, and `connection_log`. The next drone then plans its route **around all previously committed drones**.
+
+This greedy sequential approach is `O(N × A*)` — far more tractable than joint planning — and produces valid, near-optimal solutions in practice.
+
+#### Safety Limit
+
+If A* cannot find a path within 2000 turns, it returns `None` and `get_traffic_plan()` raises a `ValueError`. The UI catches this and shows a readable error instead of crashing.
 
 ---
 
@@ -252,14 +212,14 @@ Fly-In/
 ├── fly-in.py              # Entry point
 ├── game.py                # Main game loop, camera, UI, tooltip, legend
 ├── generator_map.py       # Pygame sprites: VisualNode, VisualDrone, GraphRenderer
-├── solver.py              # A* traffic controller & pathfinding
+├── solver.py              # TrafficController: Dijkstra + A* pathfinding
+├── simulation_output.py   # Console output formatting (VII.5 format)
 ├── parser.py              # Map file parser & Pydantic validation
 ├── structure.py           # Data structures: Node, Hub, Start, End, Connection, Drone
 ├── menu.py                # Main menu, map selector, animated buttons
-├── convertisseur.py       # GIF-to-Pygame frame converter
+├── converter.py           # GIF-to-Pygame frame converter
 ├── Makefile               # Build, lint, run commands
 ├── pyproject.toml         # Python dependencies (uv)
-├── .flake8                # Flake8 configuration (max-line-length = 120)
 ├── assets/                # Images, drone sprites, GIFs, cloud backgrounds
 └── maps/
     ├── easy/              # 3 beginner maps
@@ -310,7 +270,7 @@ connection: danger-goal
 ### Connection Options `[...]`
 
 | Option                  | Default | Description                                |
-|-------------------------|---------|--------------------------------------------|
+|-------------------------|---------|---------------------------------------------|
 | `max_link_capacity=N`   | 1       | Max simultaneous drones on the link        |
 
 ### Available Colors
@@ -326,7 +286,7 @@ connection: danger-goal
 Each drone is randomly assigned one of five visual models at the start of the simulation:
 
 | Model  | Color | Preview |
-|--------|-------|---|
+|--------|-------|---------|
 | Blue   | 🔵 | <img src="assets/blue_drone.gif" width="60"> |
 | Green  | 🟢 | <img src="assets/green_drone.gif" width="60"> |
 | Red    | 🔴 | <img src="assets/red_drone.gif" width="60"> |
@@ -339,14 +299,14 @@ Each drone is randomly assigned one of five visual models at the start of the si
 
 These shortcuts are available during simulation and are also displayed in the **in-game legend panel** (top-right corner):
 
-| Key               | Action                                      |
-|-------------------|---------------------------------------------|
-| `SPACE`           | Play / Pause the simulation                 |
-| `→` Right Arrow   | Increase simulation speed (`×1` → `×2` → `×4` → `×8`) |
-| `←` Left Arrow    | Decrease simulation speed (`×8` → `×4` → `×2` → `×1`) |
-| `W`               | Toggle background parallax animation (ON/OFF) |
-| Right Click + Drag| Pan / move the camera                       |
-| Mouse Wheel       | Zoom in / Zoom out                          |
+| Key               | Action                                                   |
+|-------------------|----------------------------------------------------------|
+| `SPACE`           | Play / Pause the simulation                              |
+| `→` Right Arrow   | Increase simulation speed (`×1` → `×2` → `×4` → `×8`)  |
+| `←` Left Arrow    | Decrease simulation speed (`×8` → `×4` → `×2` → `×1`)  |
+| `W`               | Toggle background parallax animation (ON/OFF)            |
+| Right Click + Drag| Pan / move the camera                                    |
+| Mouse Wheel       | Zoom in / Zoom out                                       |
 
 ---
 
@@ -356,7 +316,7 @@ These shortcuts are available during simulation and are also displayed in the **
 
 ---
 
-## ⚙️ Installation & Execution
+## ⚙️ Instructions
 
 ### Requirements
 
@@ -382,16 +342,19 @@ make run
 ```
 
 ### Run linting checks
+
 ```bash
 make lint
 ```
 
 ### Run strict linting checks
+
 ```bash
 make lint-strict
 ```
 
 ### Run the application in debug mode
+
 ```bash
 make debug
 ```
@@ -402,20 +365,18 @@ make debug
 make clean
 ```
 
-
-
 ---
 
 ## 🛠️ Makefile Commands
 
-| Command           | Description                                                        |
-|-------------------|--------------------------------------------------------------------|
-| `make install`    | Install all Python dependencies via `uv sync`                      |
-| `make run`        | Launch the simulator                                               |
-| `make lint`       | Run `mypy` (type checking) + `flake8` (style)                      |
-| `make lint-strict`| Run `mypy --strict` + `flake8` (stricter type checking)            |
-| `make debug`      | Launch the simulator under `pdb` debugger                          |
-| `make clean`      | Remove `.venv`, `__pycache__`, `.mypy_cache`, `uv.lock`            |
+| Command            | Description                                                        |
+|--------------------|--------------------------------------------------------------------|
+| `make install`     | Install all Python dependencies via `uv sync`                      |
+| `make run`         | Launch the simulator                                               |
+| `make lint`        | Run `mypy` (type checking) + `flake8` (style)                      |
+| `make lint-strict` | Run `mypy --strict` + `flake8` (stricter type checking)            |
+| `make debug`       | Launch the simulator under `pdb` debugger                          |
+| `make clean`       | Remove `.venv`, `__pycache__`, `.mypy_cache`, `uv.lock`            |
 
 ---
 
@@ -423,56 +384,56 @@ make clean
 
 ### 🟢 Easy
 
-| File                  | Description                              |
-|-----------------------|------------------------------------------|
-| `01_linear_path.txt`  | Simple straight line, no constraints     |
-| `02_simple_fork.txt`  | First fork to choose a path              |
-| `03_basic_capacity.txt` | Introduction to capacity limits        |
+| File                    | Description                              |
+|-------------------------|------------------------------------------|
+| `01_linear_path.txt`    | Simple straight line, no constraints     |
+| `02_simple_fork.txt`    | First fork to choose a path              |
+| `03_basic_capacity.txt` | Introduction to capacity limits          |
 
 ### 🟡 Medium
 
-| File                    | Description                               |
-|-------------------------|-------------------------------------------|
-| `01_dead_end_trap.txt`  | Dead-end that can lure drones off course  |
-| `02_circular_loop.txt`  | Loop structure requiring careful planning |
-| `03_priority_puzzle.txt`| Mix of zone types and capacity limits     |
+| File                     | Description                               |
+|--------------------------|-------------------------------------------|
+| `01_dead_end_trap.txt`   | Dead-end that can lure drones off course  |
+| `02_circular_loop.txt`   | Loop structure requiring careful planning |
+| `03_priority_puzzle.txt` | Mix of zone types and capacity limits     |
 
 ### 🔴 Hard
 
-| File                      | Description                                     |
-|---------------------------|-------------------------------------------------|
-| `01_maze_nightmare.txt`   | Complex maze with many dead ends                |
-| `02_capacity_hell.txt`    | Highly restricted capacity on every link        |
-| `03_ultimate_challenge.txt` | Large map combining all constraint types     |
+| File                       | Description                                  |
+|----------------------------|----------------------------------------------|
+| `01_maze_nightmare.txt`    | Complex maze with many dead ends             |
+| `02_capacity_hell.txt`     | Highly restricted capacity on every link     |
+| `03_ultimate_challenge.txt`| Large map combining all constraint types     |
 
 ### 💀 Challenger
 
-| File                         | Description                                   |
-|------------------------------|-----------------------------------------------|
-| `01_the_impossible_dream.txt`| Extreme map pushing the solver to its limits  |
+| File                          | Description                                   |
+|-------------------------------|-----------------------------------------------|
+| `01_the_impossible_dream.txt` | Extreme map pushing the solver to its limits  |
 
 ---
 
 ## 📚 Resources
 
 ### Technical References
-- [pygame - youtube](https://www.youtube.com/watch?v=8J8wWxbAdFg&list=PLMS9Cy4Enq5KsM7GJ4LHnlBQKTQBV8kaR)
-- [Pygame Documentation](https://www.pygame.org/docs/)
-- [Recherche A-Star — youtube](https://www.youtube.com/watch?v=lSzElQ2Belk)
-- [Comprendre A* — youtube](https://www.youtube.com/watch?v=i0x5fj4PqP4)
-- [A* Search Algorithm — Wikipedia](https://en.wikipedia.org/wiki/A*_search_algorithm)
 
-- [uv — youtube](https://www.youtube.com/watch?v=3WJ40TYi83c)
+- [Pygame — YouTube tutorial](https://www.youtube.com/watch?v=8J8wWxbAdFg&list=PLMS9Cy4Enq5KsM7GJ4LHnlBQKTQBV8kaR)
+- [Pygame Documentation](https://www.pygame.org/docs/)
+- [A* Search — YouTube](https://www.youtube.com/watch?v=lSzElQ2Belk)
+- [Understanding A* — YouTube](https://www.youtube.com/watch?v=i0x5fj4PqP4)
+- [A* Search Algorithm — Wikipedia](https://en.wikipedia.org/wiki/A*_search_algorithm)
+- [uv package manager — YouTube](https://www.youtube.com/watch?v=3WJ40TYi83c)
 
 ### AI Usage
 
-
-| Task                        | Details                                                                 |
-|-----------------------------|-------------------------------------------------------------------------|
-| **Algorithm debugging**     | Identifying edge cases in the A* time-expanded state space              |
-| **Bug fixes**               | various bug fixes |
-| **Code quality**            | Resolving `mypy --strict` and `flake8` errors across all source files   |
-| **Map design**              | Generating complex test maps (extreme maze, hardcore maze)               |
-| **README**                  | Drafting this document                                                  |
+| Task                    | Details                                                               |
+|-------------------------|-----------------------------------------------------------------------|
+| **Algorithm debugging** | Identifying edge cases in the A* time-expanded state space            |
+| **Bug fixes**           | Various bug fixes across the solver and parser                        |
+| **Code quality**        | Resolving `mypy --strict` and `flake8` errors across all source files |
+| **Code refactoring**    | Splitting `solver.py` into smaller, clearly named helper functions    |
+| **Map design**          | Generating complex test maps (extreme maze, hardcore maze)            |
+| **README**              | Drafting and restructuring this document                              |
 
 > AI was used as a pair-programming assistant. All generated code was reviewed, understood, and adapted by the project author.
