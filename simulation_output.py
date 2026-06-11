@@ -26,8 +26,6 @@ def print_simulation_output(flight_plan: dict[str, list[str]],
             if step < len(plan):
                 if plan[step] != plan[step - 1]:
                     dest: str = plan[step]
-                    if dest.startswith("wp_"):
-                        dest = dest[3:].replace("_", "-")
                     line += f"{drone_id}-{dest} "
         if line:
             print(line.strip())
