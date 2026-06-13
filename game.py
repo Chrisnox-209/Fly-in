@@ -107,7 +107,8 @@ class SimpleGame:
         if node is None:
             raise ValueError(f"Node {start_name} not found")
 
-        tarmac: TrafficController = TrafficController(game_map)
+        self.traffic_controller = TrafficController(game_map)
+        tarmac: TrafficController = self.traffic_controller
         for wp_name, node_a, node_b, fraction in tarmac.generated_waypoints:
             x_a: int
             y_a: int
@@ -481,46 +482,24 @@ class SimpleGame:
         if not hovered_node and not hovered_conn:
             return
 
-        drones_list: list[str] = []
-        d: VisualDrone
-        for d in self.renderer.drones_sprites:
-            # Drone has finished: it stays at the last hub of its plan
-            if d.step >= len(d.flight_plan):
-                last_hub: str = d.flight_plan[-1]
-                if hovered_node and last_hub == hovered_node:
-                    drones_list.append(d.name)
-                continue
+        current_turn: int = 0
+        if self.renderer.drones_sprites:
+            current_turn = max(d.step for d in self.renderer.drones_sprites)
+            if current_turn > self.total_turns:
+                current_turn = self.total_turns
 
-            curr: str = d.flight_plan[d.step]
-            next_h: str = d.flight_plan[min(d.step + 1, len(
-                d.flight_plan) - 1)]
-
-            if d.current_frame >= d.frames_per_turn:
-                curr = next_h
-
-            if hovered_node and node_obj:
-                if curr == next_h and curr == hovered_node:
-                    drones_list.append(d.name)
-            elif hovered_conn:
-                ca: str = hovered_conn.connection_a
-                cb: str = hovered_conn.connection_b
-                if curr != next_h:
-                    def get_nodes(name: str) -> list[str]:
-                        if name.startswith("wp_"):
-                            return name[3:].split('_')
-                        return [name]
-
-                    involved: set[str] = set(get_nodes(curr) + get_nodes(
-                        next_h))
-                    if ca in involved and cb in involved:
-                        drones_list.append(d.name)
-                else:
-                    wp1: str = f"wp_{ca}_{cb}"
-                    wp2: str = f"wp_{cb}_{ca}"
-                    if curr == wp1 or curr == wp2:
-                        drones_list.append(d.name)
-
-        drone_count: int = len(drones_list)
+        drone_count: int = 0
+        if hovered_node and node_obj:
+            drone_count = self.traffic_controller.hub_usage_log.get(
+                (hovered_node, current_turn), 0
+            )
+        elif hovered_conn:
+            ca: str = hovered_conn.connection_a
+            cb: str = hovered_conn.connection_b
+            canonical: tuple[str, str] = (min(ca, cb), max(ca, cb))
+            drone_count = self.traffic_controller.link_usage_log.get(
+                (canonical, current_turn), 0
+            )
 
         font: pygame.font.Font = pygame.font.SysFont(None, 36)
         label: str
@@ -542,24 +521,10 @@ class SimpleGame:
             f"Drones: {drone_count} / {cap}", True, (255, 255, 255)
         )
 
-        names_text: str = ""
-        if drone_count > 0:
-            names_text = ", ".join(drones_list)
-
-        text3: pygame.Surface | None = None
-        if names_text:
-            text3 = font.render(
-                f"[{names_text}]", True, (150, 200, 255)
-            )
-
         tw: int = max(text1.get_width(), text2.get_width())
-        if text3:
-            tw = max(tw, text3.get_width())
         tw += 20
 
         th: int = text1.get_height() + text2.get_height() + 20
-        if text3:
-            th += text3.get_height() + 10
 
         box_x: int = mouse_x + 15
         box_y: int = mouse_y + 15
@@ -575,10 +540,6 @@ class SimpleGame:
 
         screen.blit(text1, (box_x + 10, box_y + 10))
         screen.blit(text2, (box_x + 10, box_y + 10 + text1.get_height()))
-        if text3:
-            y_offset: int = (box_y + 10 + text1.get_height()
-                             + text2.get_height())
-            screen.blit(text3, (box_x + 10, y_offset))
 
 
 class GameApp:
