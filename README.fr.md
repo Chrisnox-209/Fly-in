@@ -32,7 +32,7 @@ Le simulateur résout automatiquement le problème de routage et joue une animat
 
 - 🗺️ **Format de carte personnalisé** — définissez vos propres réseaux de zones dans de simples fichiers `.txt`
 - 🤖 **Solveur automatique** — algorithme A* avec espace d'états étendu dans le temps
-- 🎮 **Visualiseur interactif** — rendu Pygame en temps réel avec zoom, panoramique et contrôle de vitesse
+- 🎮 **Visualiseur interactif** — rendu Pygame en temps réel avec panoramique et contrôle de vitesse
 - 🚫 **Types de zones** — zones Normale, Prioritaire, Restreinte et Bloquée avec des coûts de traversée différents
 - 📊 **Sortie de simulation** — affichage console pas-à-pas au format standardisé (section VII.5 du sujet)
 - ✅ **Validation des cartes** — validation Pydantic complète avec des messages d'erreur lisibles
@@ -48,7 +48,7 @@ Il fonctionne en **3 phases** pour router tous les drones du départ à l'arriv�
 
 ### 🟦 Phase 1 — Dijkstra Inversé (Précalcul de l'Heuristique)
 
-<center><img src="assets/fr_phase1-heuristique_dijkstra_inverse.png" width="700"></center>
+<center><img src="assets/phase1-reverse_Dijkstra_heuristic.png" width="700"></center>
 
 **Ce que ça fait :** Avant de chercher le chemin d'un drone, le solveur exécute une recherche de Dijkstra en partant du **hub d'arrivée** et en remontant à travers tout le graphe.
 
@@ -71,7 +71,7 @@ Chaque hub possède un type de zone qui détermine combien de tours il coûte po
 
 ### 🟩 Phase 2 — A\* Spatiotemporel (Recherche de Chemin)
 
-<center><img src="assets/fr_phase2-algorithme_A_star_spatio_temporel.png" width="700"></center>
+<center><img src="assets/phase2-spatiotemporal_A_star_algorithm.png" width="700"></center>
 
 **Ce que ça fait :** Pour chaque drone, le solveur trouve le chemin optimal en utilisant A*. L'idée clé est que l'état inclut non seulement le hub, mais aussi le tour actuel :
 
@@ -128,7 +128,7 @@ A  ──►  wp_A_B  ──►  B
 
 ### 🟥 Phase 3 — Contraintes Dynamiques & Réservations
 
-<center><img src="assets/fr_phase3-contraintes_dynamique_&_reservations.png" width="700"></center>
+<center><img src="assets/phase3-dynamic_constraints_&_reservations.png" width="700"></center>
 
 **Ce que ça fait :** Cette phase empêche les collisions et gère le routage de plusieurs drones l'un après l'autre.
 
@@ -306,7 +306,6 @@ Ces raccourcis sont disponibles pendant la simulation et sont également affich�
 | `←` Flèche gauche   | Diminuer la vitesse (`×8` → `×4` → `×2` → `×1`)              |
 | `W`                 | Activer/Désactiver l'animation de parallaxe (ON/OFF)          |
 | Clic droit + Glisser| Déplacer la caméra                                            |
-| Molette de souris   | Zoom avant / Zoom arrière                                     |
 
 ---
 

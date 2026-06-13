@@ -306,7 +306,6 @@ These shortcuts are available during simulation and are also displayed in the **
 | `←` Left Arrow    | Decrease simulation speed (`×8` → `×4` → `×2` → `×1`)  |
 | `W`               | Toggle background parallax animation (ON/OFF)            |
 | Right Click + Drag| Pan / move the camera                                    |
-| Mouse Wheel       | Zoom in / Zoom out                                       |
 
 ---
 

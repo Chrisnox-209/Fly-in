@@ -18,7 +18,7 @@ class SimpleGame:
     """Manages the main game loop, rendering, and interaction
     for a loaded simulation.
 
-    Handles camera movement (pan/zoom), UI overlays, tooltips, and the visual
+    Handles camera movement (pan), UI overlays, tooltips, and the visual
     advancement of drone animations based on the solved flight plan.
     """
 
@@ -69,7 +69,6 @@ class SimpleGame:
 
         self.renderer: GraphRenderer = GraphRenderer(self.game_map)
         self.simulation_state: bool = simulation_state
-        self.zoom: float = 1.0
         self.camera_x: float = 0.0
         self.camera_y: float = 0.0
         self.is_dragging: bool = False
@@ -207,16 +206,6 @@ class SimpleGame:
                         self.sim_speed = 1
                 elif event.key == pygame.K_w:
                     self.bg_scroll_active = not self.bg_scroll_active
-
-            if event.type == pygame.MOUSEWHEEL:
-                if event.y > 0:
-                    self.zoom += 0.1
-                elif event.y < 0:
-                    self.zoom -= 0.1
-
-                if self.zoom < 0.2:
-                    self.zoom = 0.2
-
         return None
 
     def draw(self, screen: pygame.Surface) -> None:
@@ -238,19 +227,14 @@ class SimpleGame:
         self.renderer.all_sprites.draw(self.world_surface)
         self.renderer.drones_sprites.draw(self.world_surface)
 
-        new_w: int = int(2832 * self.zoom)
-        new_h: int = int(1504 * self.zoom)
-        zoomed_surface: pygame.Surface = pygame.transform.smoothscale(
-            self.world_surface, (new_w, new_h)
-        )
-
-        screen.blit(zoomed_surface, (self.camera_x, self.camera_y))
+        screen.blit(self.world_surface, (self.camera_x, self.camera_y))
 
         self.return_btn.draw(screen)
         self.quit_btn.draw(screen)
 
         self.draw_legend(screen)
         self.draw_tooltip(screen)
+        self.draw_turn_counter(screen)
 
         if getattr(self, 'is_finished', False):
 
@@ -320,6 +304,63 @@ class SimpleGame:
             self.popup_menu_btn.draw(screen)
             self.popup_restart_btn.draw(screen)
 
+    def draw_turn_counter(self, screen: pygame.Surface) -> None:
+        """Draws the current turn counter in the bottom-left corner.
+
+        Displays the progression as 'current / total' turns.
+
+        Args:
+            screen (pygame.Surface): The Pygame surface to draw on.
+        """
+        if not self.renderer.drones_sprites:
+            return
+
+        current_turn: int = 0
+        drone: VisualDrone
+        for drone in self.renderer.drones_sprites:
+            if drone.step > current_turn:
+                current_turn = drone.step
+
+        if current_turn > self.total_turns:
+            current_turn = self.total_turns
+
+        label: str = f"{current_turn} / {self.total_turns}"
+
+        font_counter: pygame.font.Font = pygame.font.SysFont(
+            "arial", 42, bold=True
+        )
+
+        text_surface: pygame.Surface = font_counter.render(
+            label, True, (255, 255, 255)
+        )
+        text_w: int = text_surface.get_width()
+        text_h: int = text_surface.get_height()
+
+        padding: int = 18
+        box_w: int = text_w + padding * 2
+        box_h: int = text_h + padding * 2
+        box_x: int = 20
+        box_y: int = screen.get_height() - box_h - 20
+
+        box_bg: pygame.Surface = pygame.Surface(
+            (box_w, box_h), pygame.SRCALPHA
+        )
+        box_bg.fill((20, 20, 20, 200))
+        screen.blit(box_bg, (box_x, box_y))
+
+        pygame.draw.rect(
+            screen,
+            (150, 150, 200),
+            (box_x, box_y, box_w, box_h),
+            width=2,
+            border_radius=10
+        )
+
+        screen.blit(
+            text_surface,
+            (box_x + padding, box_y + padding)
+        )
+
     def draw_legend(self, screen: pygame.Surface) -> None:
         font_title: Font = pygame.font.SysFont("arial", 28, bold=True)
         font_text: Font = pygame.font.SysFont("arial", 22)
@@ -353,8 +394,7 @@ class SimpleGame:
             ("SPACE", "Play / Pause"),
             ("LEFT / RIGHT", "Change Speed"),
             ("W", f"Background ({bg_state})"),
-            ("Right Click", "Move Camera"),
-            ("Mouse Wheel", "Zoom In / Out")
+            ("Right Click", "Move Camera")
         ]
         key: str
         desc: str
@@ -393,8 +433,8 @@ class SimpleGame:
         mouse_x: int
         mouse_y: int
         mouse_x, mouse_y = pygame.mouse.get_pos()
-        world_x: float = (mouse_x - self.camera_x) / self.zoom
-        world_y: float = (mouse_y - self.camera_y) / self.zoom
+        world_x: float = mouse_x - self.camera_x
+        world_y: float = mouse_y - self.camera_y
 
         hovered_node: str | None = None
         node_obj: VisualNode | None = None
@@ -434,7 +474,7 @@ class SimpleGame:
                 proj_y: float = y1 + t * (y2 - y1)
                 dist_proj: float = math.hypot(
                     world_x - proj_x, world_y - proj_y)
-                if dist_proj <= 15.0 / self.zoom:
+                if dist_proj <= 15.0:
                     hovered_conn = conn
                     break
 
