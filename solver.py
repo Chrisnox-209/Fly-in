@@ -1,552 +1,425 @@
 import heapq
-from typing import Dict, List, Tuple, Set, Optional, Union
+from typing import Optional
 from parser import Global
-from structure import Hub, Connection
+from structure import Node, Connection
 
 
 class TrafficController:
-    """
-    Manages the routing and scheduling of drones.
+    """Routes and schedules drones across the map.
 
-    This class uses the Dijkstra algorithm to precompute distances.
-    Then, it uses the A* algorithm to find paths for each drone.
-    It avoids collisions by checking capacities.
+    Phase 1 — Dijkstra (backward from end): precomputes the minimum
+    distance from every hub to the goal. Used as the A* heuristic.
+
+    Phase 2 — A* (time-expanded): finds the optimal path for each drone,
+    considering the current turn as part of the state.
+
+    Phase 3 — Reservations: after each drone is routed, its path is
+    committed to logs so the next drone routes around it.
     """
 
     def __init__(self, map_data: Global) -> None:
-        """
-        Initializes the TrafficController.
+        """Initializes the controller and runs the setup.
 
         Args:
             map_data (Global): The parsed map data.
         """
         self.map_data: Global = map_data
-        self.hub_details: Dict[str, Tuple[int, str, float, float]] = {}
-        self.address_book: Dict[str, Set[str]] = {}
+
+        # hub_details[name] = (max_drones, zone, x, y)
+        self.hub_details: dict[str, tuple[int, str, float, float]] = {}
+
+        # address_book[name] = set of directly reachable hub names
+        self.address_book: dict[str, set[str]] = {}
+
         self.start: str = map_data.glb_start.name
         self.end: str = map_data.glb_end.name
-        self.link_capacities: Dict[Tuple[str, str], int] = {}
 
-        self.flight_log: Dict[Tuple[str, int], int] = {}
-        self.link_log: Dict[Tuple[str, str, int], int] = {}
-        self.connection_log: Dict[Tuple[Tuple[str, str], int], int] = {}
+        # link_capacities[(a, b)] = max simultaneous drones on that link
+        self.link_capacities: dict[tuple[str, str], int] = {}
 
-        self.parent_conn: Dict[
-            Union[str, Tuple[str, str]], Tuple[str, str]
-        ] = {}
+        # parent_conn maps any directed link to its canonical (min,max) key
+        self.parent_conn: dict[object, tuple[str, str]] = {}
 
-        self.generated_waypoints: List[Tuple[str, str, str, float]] = []
+        # Hub reservations: (hub_name, turn) -> count
+        self.hub_usage_log: dict[tuple[str, int], int] = {}
+        # Link reservations: ((hub_a, hub_b), turn) -> count (canonical tuple)
+        self.link_usage_log: dict[tuple[tuple[str, str], int], int] = {}
 
-        self.distance_to_end: Dict[str, float] = {}
+        # Heuristic: distance from each hub to the end hub
+        self.distance_to_end: dict[str, float] = {}
+        # Visual waypoints: (wp_name, node_a, node_b, fraction)
+        # Used by game.py to position waypoints on screen
+        self.generated_waypoints: list[tuple[str, str, str, float]] = []
 
         self.setup_hubs()
         self.setup_connections()
         self.compute_dijkstra()
 
+    # ------------------------------------------------------------------
+    # Setup helpers
+    # ------------------------------------------------------------------
+
     def setup_hubs(self) -> None:
-        """
-        Sets up the hubs in the internal dictionaries.
-        """
-        self.hub_details[self.map_data.glb_start.name] = (
-            self.map_data.glb_start.max_drones,
-            self.map_data.glb_start.zone,
-            float(self.map_data.glb_start.x),
-            float(self.map_data.glb_start.y)
+        """Registers all hubs (start, end, and intermediate) internally."""
+        all_nodes: list[Node] = (
+            [self.map_data.glb_start, self.map_data.glb_end]
+            + list(self.map_data.glb_hub)
         )
-        self.hub_details[self.map_data.glb_end.name] = (
-            self.map_data.glb_end.max_drones,
-            self.map_data.glb_end.zone,
-            float(self.map_data.glb_end.x),
-            float(self.map_data.glb_end.y)
-        )
-
-        self.address_book[self.map_data.glb_start.name] = set()
-        self.address_book[self.map_data.glb_end.name] = set()
-
-        hub: Hub
-        for hub in self.map_data.glb_hub:
-            self.address_book[hub.name] = set()
-            self.hub_details[hub.name] = (
-                hub.max_drones,
-                hub.zone,
-                float(hub.x),
-                float(hub.y)
+        node: Node
+        for node in all_nodes:
+            self.hub_details[node.name] = (
+                node.max_drones,
+                node.zone,
+                float(node.x),
+                float(node.y),
             )
+            self.address_book[node.name] = set()
 
     def setup_connections(self) -> None:
+        """Registers connections and creates intermediate waypoint nodes.
+
+        For every connection A-B a waypoint wp_A_B is inserted at the
+        midpoint. This lets the solver track drones in transit separately
+        from drones sitting at a hub.
         """
-        Sets up the connections and waypoints in the internal dictionaries.
-        """
-        connection: Connection
-        for connection in self.map_data.glb_connection:
-            node_a: str = connection.connection_a
-            node_b: str = connection.connection_b
-            capacity: int = connection.max_link_capacity
+        conn: Connection
+        for conn in self.map_data.glb_connection:
+            a: str = conn.connection_a
+            b: str = conn.connection_b
+            cap: int = conn.max_link_capacity
+            canonical: tuple[str, str] = (min(a, b), max(a, b))
 
-            x_a: float = self.hub_details[node_a][2]
-            y_a: float = self.hub_details[node_a][3]
-            x_b: float = self.hub_details[node_b][2]
-            y_b: float = self.hub_details[node_b][3]
+            # Register the direct link in both directions
+            self.address_book[a].add(b)
+            self.address_book[b].add(a)
+            self.link_capacities[(a, b)] = cap
+            self.link_capacities[(b, a)] = cap
+            self.parent_conn[(a, b)] = canonical
+            self.parent_conn[(b, a)] = canonical
 
-            self.address_book[node_a].add(node_b)
-            self.address_book[node_b].add(node_a)
-            self.link_capacities[(node_a, node_b)] = capacity
-            self.link_capacities[(node_b, node_a)] = capacity
+            # Create a waypoint at the midpoint of the connection
+            wp: str = f"wp_{a}_{b}"
+            xa, ya = self.hub_details[a][2], self.hub_details[a][3]
+            xb, yb = self.hub_details[b][2], self.hub_details[b][3]
+            mid_x: float = (xa + xb) / 2
+            mid_y: float = (ya + yb) / 2
+            self.hub_details[wp] = (cap, "priority", mid_x, mid_y)
+            self.address_book[wp] = set()
+            self.generated_waypoints.append((wp, a, b, 0.5))
 
-            conn_key: Tuple[str, str] = (
-                min(node_a, node_b), max(node_a, node_b)
-            )
-            self.parent_conn[(node_a, node_b)] = conn_key
-            self.parent_conn[(node_b, node_a)] = conn_key
+            # Link A <-> wp <-> B
+            src_node: str
+            dst_node: str
+            for src_node, dst_node in [(a, wp), (wp, a), (wp, b), (b, wp)]:
+                self.address_book[src_node].add(dst_node)
+                self.link_capacities[(src_node, dst_node)] = cap
+                self.parent_conn[(src_node, dst_node)] = canonical
 
-            wp_name: str = f"wp_{node_a}_{node_b}"
-            self.hub_details[wp_name] = (
-                capacity,
-                "priority",
-                (x_a + x_b) / 2.0,
-                (y_a + y_b) / 2.0
-            )
-            self.address_book[wp_name] = set()
+            self.parent_conn[wp] = canonical
 
-            self.generated_waypoints.append((wp_name, node_a, node_b, 0.5))
-
-            self.address_book[node_a].add(wp_name)
-            self.address_book[wp_name].add(node_a)
-            self.link_capacities[(node_a, wp_name)] = capacity
-            self.link_capacities[(wp_name, node_a)] = capacity
-
-            self.address_book[wp_name].add(node_b)
-            self.address_book[node_b].add(wp_name)
-            self.link_capacities[(wp_name, node_b)] = capacity
-            self.link_capacities[(node_b, wp_name)] = capacity
-
-            self.parent_conn[(node_a, wp_name)] = conn_key
-            self.parent_conn[(wp_name, node_a)] = conn_key
-            self.parent_conn[(wp_name, node_b)] = conn_key
-            self.parent_conn[(node_b, wp_name)] = conn_key
-            self.parent_conn[wp_name] = conn_key
+    # ------------------------------------------------------------------
+    # Phase 1: Dijkstra (backward heuristic)
+    # ------------------------------------------------------------------
 
     def compute_dijkstra(self) -> None:
-        """
-        Computes the shortest path from the end node to all other nodes.
+        """Runs Dijkstra backward from the end hub.
 
-        It uses the Dijkstra algorithm. The results are stored in
-        self.distance_to_end.
+        Fills self.distance_to_end[hub] with the minimum cost
+        to reach the end hub from each reachable hub.
         """
-        self.distance_to_end = {}
-        dijkstra_queue: List[Tuple[float, str]] = []
-        heapq.heappush(dijkstra_queue, (0.0, self.end))
+        queue: list[tuple[float, str]] = [(0.0, self.end)]
 
-        while len(dijkstra_queue) > 0:
-            current_item: Tuple[float, str] = heapq.heappop(dijkstra_queue)
-            dist: float = current_item[0]
-            node: str = current_item[1]
+        while queue:
+            dist: float
+            node: str
+            dist, node = heapq.heappop(queue)
 
             if node in self.distance_to_end:
                 continue
-
             self.distance_to_end[node] = dist
 
             neighbor: str
             for neighbor in self.address_book[node]:
-                if neighbor not in self.distance_to_end:
-                    zone_type: str = self.hub_details[node][1]
-                    zone_score: int = self.get_zone_score(zone_type)
-
-                    if zone_score > 0:
-                        new_dist: float = dist + float(zone_score)
-                        heapq.heappush(dijkstra_queue, (new_dist, neighbor))
+                if neighbor in self.distance_to_end:
+                    continue
+                cost: int = self.zone_cost(self.hub_details[node][1])
+                if cost > 0:
+                    heapq.heappush(queue, (dist + cost, neighbor))
 
     @staticmethod
-    def get_zone_score(zone: str) -> int:
-        """
-        Gets the time penalty for a given zone.
+    def zone_cost(zone: str) -> int:
+        """Returns the turn cost to enter a zone.
 
         Args:
-            zone (str): The name of the zone.
+            zone (str): Zone type name.
 
         Returns:
-            int: The time penalty in turns.
+            int: 0 for blocked, 2 for restricted, 1 otherwise.
         """
         if zone == "blocked":
             return 0
         if zone == "restricted":
             return 2
-        if zone == "priority":
-            return 1
         return 1
 
-    def get_previous_hub(
-        self,
-        current_state: Tuple[str, int],
-        current_hub: str,
-        origin: Dict[Tuple[str, int], Optional[Tuple[str, int]]]
-    ) -> Optional[str]:
-        """
-        Retrieves the previous hub from the path history.
-
-        Args:
-            current_state (Tuple[str, int]): The current state.
-            current_hub (str): The current hub name.
-            origin (Dict[Tuple[str, int], Optional[Tuple[str, int]]]):
-                The path history.
-
-        Returns:
-            Optional[str]: The previous hub name or None.
-        """
-        previous_hub: Optional[str] = None
-        prev_state: Optional[Tuple[str, int]] = origin.get(current_state)
-
-        while prev_state is not None:
-            if prev_state[0] != current_hub:
-                previous_hub = prev_state[0]
-                break
-            prev_state = origin.get(prev_state)
-
-        return previous_hub
-
-    def get_possible_neighbors(self, current_hub: str) -> List[str]:
-        """
-        Gets a list of all possible next hubs.
-
-        Args:
-            current_hub (str): The current hub name.
-
-        Returns:
-            List[str]: A list of neighbor hub names.
-        """
-        possible_neighbors: List[str] = []
-        neighbor: str
-        for neighbor in self.address_book[current_hub]:
-            possible_neighbors.append(neighbor)
-
-        # Allow waiting at the current hub if it is not a waypoint
-        if not current_hub.startswith("wp_"):
-            possible_neighbors.append(current_hub)
-
-        return possible_neighbors
-
-    def is_hub_full(
-        self, next_hub: str, current_turn: int, end_turn: int
-    ) -> bool:
-        """
-        Checks if the destination hub will be full during the transition.
-
-        Args:
-            next_hub (str): The destination hub name.
-            current_turn (int): The turn the drone leaves.
-            end_turn (int): The turn the drone arrives.
-
-        Returns:
-            bool: True if the hub is full, False otherwise.
-        """
-        if next_hub == self.start:
-            return False
-
-        capacity_max: int = self.hub_details[next_hub][0]
-
-        t: int
-        for t in range(current_turn + 1, end_turn + 1):
-            drones_count_t: int = self.flight_log.get((next_hub, t), 0)
-            if drones_count_t >= capacity_max:
-                return True
-
-        return False
-
-    def is_route_full(
-        self,
-        current_hub: str,
-        next_hub: str,
-        current_turn: int,
-        end_turn: int
-    ) -> bool:
-        """
-        Checks if the route between two hubs will be full.
-
-        Args:
-            current_hub (str): The current hub name.
-            next_hub (str): The destination hub name.
-            current_turn (int): The turn the drone leaves.
-            end_turn (int): The turn the drone arrives.
-
-        Returns:
-            bool: True if the route is full, False otherwise.
-        """
-        route_cap: int = self.link_capacities[(current_hub, next_hub)]
-        conn_key_opt: Optional[Tuple[str, str]] = self.parent_conn.get(
-            (current_hub, next_hub)
-        )
-
-        tt: int
-        for tt in range(current_turn, end_turn):
-            link_count: int = self.link_log.get(
-                (current_hub, next_hub, tt), 0
-            )
-            if link_count >= route_cap:
-                return True
-
-            if conn_key_opt is not None:
-                conn_count: int = self.connection_log.get(
-                    (conn_key_opt, tt), 0
-                )
-                if conn_count >= route_cap:
-                    return True
-
-        return False
-
-    def calculate_penalties(self, current_hub: str, next_hub: str) -> float:
-        """
-        Calculates waiting and backtracking penalties.
-
-        Args:
-            current_hub (str): The current hub name.
-            next_hub (str): The next hub name.
-
-        Returns:
-            float: The total penalty score.
-        """
-        wait_penalty: float = 0.0
-        if next_hub == current_hub:
-            wait_penalty = 1e-6
-
-        h_next: float = self.distance_to_end.get(next_hub, float('inf'))
-        h_curr: float = self.distance_to_end.get(current_hub, float('inf'))
-
-        backtrack_penalty: float = 0.0
-        if h_next > h_curr:
-            backtrack_penalty = 2.0
-
-        return wait_penalty + backtrack_penalty
+    # ------------------------------------------------------------------
+    # Phase 2: A* (time-expanded pathfinding)
+    # ------------------------------------------------------------------
 
     def compute_a_star(
-        self
-    ) -> Optional[Tuple[List[str], List[Tuple[str, int]]]]:
-        """
-        Finds the optimal path for a single drone using the A* algorithm.
+        self,
+    ) -> Optional[tuple[list[str], list[tuple[str, int]]]]:
+        """Finds the optimal path for one drone using time-expanded A*.
+
+        The state is (hub_name, turn). The heuristic is the Dijkstra
+        distance precomputed in Phase 1.
 
         Returns:
-            Optional[Tuple[List[str], List[Tuple[str, int]]]]:
-            A tuple containing the list of hubs visited and the
-            list of state transitions, or None if no path exists.
+            A (path, states) tuple, or None if no path exists within
+            2000 turns.
         """
-        waiting_list: List[Tuple[float, float, str, int]] = []
-        initial_state: Tuple[str, int] = (self.start, 0)
+        # origin[state] = parent state (used to rebuild the path)
+        origin: dict[tuple[str, int], Optional[tuple[str, int]]] = {
+            (self.start, 0): None
+        }
+        g_score: dict[tuple[str, int], float] = {(self.start, 0): 0.0}
 
-        origin: Dict[Tuple[str, int], Optional[Tuple[str, int]]] = {}
-        origin[initial_state] = None
+        # heap entries: (f, g, hub, turn)
+        queue: list[tuple[float, float, str, int]] = [
+            (0.0, 0.0, self.start, 0)
+        ]
 
-        g_score: Dict[Tuple[str, int], float] = {}
-        g_score[initial_state] = 0.0
+        while queue:
+            f: float
+            g: float
+            hub: str
+            turn: int
+            f, g, hub, turn = heapq.heappop(queue)
 
-        heapq.heappush(waiting_list, (0.0, 0.0, self.start, 0))
-
-        while len(waiting_list) > 0:
-            current_item: Tuple[
-                float, float, str, int
-            ] = heapq.heappop(waiting_list)
-
-            g_val: float = current_item[1]
-            current_hub: str = current_item[2]
-            current_turn: int = current_item[3]
-
-            if current_turn > 2000:
+            if turn > 2000:
                 return None
 
-            current_state: Tuple[str, int] = (current_hub, current_turn)
+            state: tuple[str, int] = (hub, turn)
 
-            best_g_val: float = g_score.get(current_state, float('inf'))
-            if g_val > best_g_val:
+            # Skip if we already found a better path to this state
+            if g > g_score.get(state, float("inf")):
                 continue
 
-            previous_hub: Optional[str] = self.get_previous_hub(
-                current_state, current_hub, origin
-            )
+            # Goal reached
+            if hub == self.end:
+                return self.rebuild_path(state, origin)
 
-            if current_hub == self.end:
-                return self.reconstruct_path(current_state, origin)
+            # Find where we came from (to avoid immediate backtracking)
+            prev_hub: Optional[str] = None
+            prev_state: Optional[tuple[str, int]] = origin.get(state)
+            while prev_state is not None:
+                if prev_state[0] != hub:
+                    prev_hub = prev_state[0]
+                    break
+                prev_state = origin.get(prev_state)
 
-            if current_hub not in self.address_book:
-                continue
-
-            possible_neighbors: List[str] = self.get_possible_neighbors(
-                current_hub
-            )
+            # Explore all neighbors (and the wait option)
+            neighbors: list[str] = list(self.address_book[hub])
+            if not hub.startswith("wp_"):
+                neighbors.append(hub)  # waiting in place
 
             next_hub: str
-            for next_hub in possible_neighbors:
-                if next_hub == previous_hub:
-                    continue
+            for next_hub in neighbors:
+                if next_hub == prev_hub:
+                    continue  # avoid immediate U-turn
 
-                zone_score: int = 0
-                if next_hub == current_hub:
-                    zone_score = 1
-                else:
-                    zone_type: str = self.hub_details[next_hub][1]
-                    zone_score = self.get_zone_score(zone_type)
-
-                if zone_score == 0:
-                    continue
-
-                end_turn: int = current_turn + zone_score
-                next_state: Tuple[str, int] = (next_hub, end_turn)
-
-                hub_full: bool = self.is_hub_full(
-                    next_hub, current_turn, end_turn
+                # Cost to enter next_hub
+                cost: int = 1 if next_hub == hub else self.zone_cost(
+                    self.hub_details[next_hub][1]
                 )
-                if hub_full:
+                if cost == 0:
+                    continue  # blocked zone
+
+                end_turn: int = turn + cost
+                next_state: tuple[str, int] = (next_hub, end_turn)
+
+                # Check hub capacity
+                if self._hub_is_full(next_hub, turn, end_turn):
                     continue
 
-                if next_hub != current_hub:
-                    route_full: bool = self.is_route_full(
-                        current_hub, next_hub, current_turn, end_turn
-                    )
-                    if route_full:
-                        continue
+                # Check link capacity (only when actually moving)
+                if next_hub != hub and self._link_is_full(
+                    hub, next_hub, turn, end_turn
+                ):
+                    continue
 
-                penalties: float = self.calculate_penalties(
-                    current_hub, next_hub
+                # Penalties: tiny nudge to prefer moving over waiting,
+                # and a bigger penalty for moving away from the goal
+                penalty: float = 0.0
+                if next_hub == hub:
+                    penalty += 1e-6
+                h_now: float = self.distance_to_end.get(hub, float("inf"))
+                h_next: float = self.distance_to_end.get(
+                    next_hub, float("inf")
                 )
+                if h_next > h_now:
+                    penalty += 2.0
 
-                next_g: float = g_val + float(zone_score) + penalties
+                next_g: float = g + cost + penalty
 
-                best_next_g: float = g_score.get(next_state, float('inf'))
-                if next_g < best_next_g:
+                if next_g < g_score.get(next_state, float("inf")):
                     g_score[next_state] = next_g
-                    origin[next_state] = current_state
-
-                    score_h: float = self.distance_to_end.get(
-                        next_hub, float('inf')
-                    )
-                    f_val: float = next_g + score_h
-
-                    heapq.heappush(
-                        waiting_list,
-                        (f_val, next_g, next_hub, end_turn)
-                    )
+                    origin[next_state] = state
+                    f = next_g + h_next
+                    heapq.heappush(queue, (f, next_g, next_hub, end_turn))
 
         return None
 
-    def reconstruct_path(
-        self,
-        current_state: Tuple[str, int],
-        origin: Dict[Tuple[str, int], Optional[Tuple[str, int]]]
-    ) -> Tuple[List[str], List[Tuple[str, int]]]:
-        """
-        Reconstructs the path from the origin dictionary.
+    # ------------------------------------------------------------------
+    # Capacity checks
+    # ------------------------------------------------------------------
+
+    def _hub_is_full(
+        self, hub: str, current_turn: int, end_turn: int
+    ) -> bool:
+        """Returns True if the hub is already at capacity during the move.
 
         Args:
-            current_state (Tuple[str, int]): The final state.
-            origin (Dict[Tuple[str, int], Optional[Tuple[str, int]]]):
-                The path history.
+            hub (str): Hub to check.
+            current_turn (int): Turn the drone departs.
+            end_turn (int): Turn the drone arrives.
 
         Returns:
-            Tuple[List[str], List[Tuple[str, int]]]: The reconstructed path.
+            bool: True if full, False if space is available.
         """
-        path_states: List[Tuple[str, int]] = []
-        state: Optional[Tuple[str, int]] = current_state
+        if hub == self.start:
+            return False  # start zone has unlimited capacity
+
+        max_cap: int = self.hub_details[hub][0]
+        t: int
+        for t in range(current_turn + 1, end_turn + 1):
+            if self.hub_usage_log.get((hub, t), 0) >= max_cap:
+                return True
+        return False
+
+    def _link_is_full(
+        self, src: str, dst: str, current_turn: int, end_turn: int
+    ) -> bool:
+        """Returns True if the link is already at capacity during the move.
+
+        Args:
+            src (str): Departure hub.
+            dst (str): Destination hub.
+            current_turn (int): Turn the drone departs.
+            end_turn (int): Turn the drone arrives.
+
+        Returns:
+            bool: True if full, False if space is available.
+        """
+        cap: int = self.link_capacities[(src, dst)]
+        canonical: Optional[tuple[str, str]] = self.parent_conn.get((src, dst))
+
+        if canonical is None:
+            return False
+
+        t: int
+        for t in range(current_turn, end_turn):
+            if self.link_usage_log.get((canonical, t), 0) >= cap:
+                return True
+        return False
+
+    # ------------------------------------------------------------------
+    # Path reconstruction
+    # ------------------------------------------------------------------
+
+    def rebuild_path(
+        self,
+        final_state: tuple[str, int],
+        origin: dict[tuple[str, int], Optional[tuple[str, int]]],
+    ) -> tuple[list[str], list[tuple[str, int]]]:
+        """Rebuilds the list of states from goal back to start.
+
+        Args:
+            final_state (tuple[str, int]): The goal state reached.
+            origin (dict): Parent-state mapping from A*.
+
+        Returns:
+            A (path, states) tuple where path[t] is the hub at turn t.
+        """
+        states: list[tuple[str, int]] = []
+        state: Optional[tuple[str, int]] = final_state
 
         while state is not None:
-            path_states.append(state)
+            states.append(state)
             state = origin.get(state)
 
-        # Reverse the list
-        reversed_path_states: List[Tuple[str, int]] = []
-        index: int = len(path_states) - 1
-        while index >= 0:
-            reversed_path_states.append(path_states[index])
-            index -= 1
+        states.reverse()
 
-        final_path: List[str] = []
-        final_path.append(reversed_path_states[0][0])
-
+        # Expand states into a per-turn list of hub names
+        path: list[str] = [states[0][0]]
         i: int
-        for i in range(len(reversed_path_states) - 1):
-            step_turn: int = reversed_path_states[i][1]
-            next_hub: str = reversed_path_states[i + 1][0]
-            next_turn: int = reversed_path_states[i + 1][1]
+        for i in range(len(states) - 1):
+            hub_next: str = states[i + 1][0]
+            turns_spent: int = states[i + 1][1] - states[i][1]
+            for _ in range(turns_spent):
+                path.append(hub_next)
 
-            turn_diff: int = next_turn - step_turn
-            j: int
-            for j in range(turn_diff):
-                final_path.append(next_hub)
+        return path, states
 
-        return final_path, reversed_path_states
+    # ------------------------------------------------------------------
+    # Phase 3: sequential multi-drone planning
+    # ------------------------------------------------------------------
 
-    def get_traffic_plan(self) -> Dict[str, List[str]]:
-        """
-        Generates flight plans for all drones.
+    def get_traffic_plan(self) -> dict[str, list[str]]:
+        """Generates flight plans for every drone one by one.
+
+        After each drone's path is found, its occupancy is committed to
+        the reservation logs so the next drone routes around it.
 
         Returns:
-            Dict[str, List[str]]: A dictionary with the flight plan
-            for each drone.
+            dict[str, list[str]]: drone_id -> list of hubs per turn.
 
         Raises:
-            ValueError: If a path cannot be found.
+            ValueError: If no path can be found for a drone.
         """
-        flight_plan: Dict[str, List[str]] = {}
-        self.flight_log.clear()
-        self.link_log.clear()
-        self.connection_log.clear()
+        flight_plan: dict[str, list[str]] = {}
+        self.hub_usage_log.clear()
+        self.link_usage_log.clear()
 
         i: int
         for i in range(self.map_data.glb_drones.drone_count):
-            drone_id: str = f"D{i}"
-            res: Optional[
-                Tuple[List[str], List[Tuple[str, int]]]
-            ] = self.compute_a_star()
-
-            if res is None:
+            result: tuple[list[str],
+                          list[tuple[str, int]]] | None = self.compute_a_star()
+            if result is None:
                 raise ValueError("Impossible to resolve map")
 
-            path: List[str] = res[0]
-            states: List[Tuple[str, int]] = res[1]
-
+            path: list[str]
+            states: list[tuple[str, int]]
+            path, states = result
+            drone_id: str = f"D{i}"
             flight_plan[drone_id] = path
 
-            state_item: Tuple[str, int]
-            for state_item in states:
-                h_val: str = state_item[0]
-                t_val: int = state_item[1]
-
-                current_flight_count: int = self.flight_log.get(
-                    (h_val, t_val), 0
+            state: tuple[str, int]
+            for state in states:
+                self.hub_usage_log[state] = (
+                    self.hub_usage_log.get(state, 0) + 1
                 )
-                self.flight_log[(h_val, t_val)] = current_flight_count + 1
 
-            idx: int
-            for idx in range(len(states) - 1):
-                curr_h: str = states[idx][0]
-                curr_t: int = states[idx][1]
-                next_h: str = states[idx + 1][0]
-                next_t: int = states[idx + 1][1]
+            # Commit the drone's link occupancy for each move
+            j: int
+            src: str
+            t_src: int
+            dst: str
+            t_dst: int
+            for j in range(len(states) - 1):
+                src, t_src = states[j]
+                dst, t_dst = states[j + 1]
 
-                if curr_h != next_h:
-                    tt: int
-                    for tt in range(curr_t, next_t):
-                        curr_link_count: int = self.link_log.get(
-                            (curr_h, next_h, tt), 0
+                if src == dst:
+                    continue  # drone waited — no link used
+
+                ck: Optional[tuple[str, str]] = self.parent_conn.get(
+                    (src, dst)
+                )
+                if ck is not None:
+                    t: int
+                    for t in range(t_src, t_dst):
+                        self.link_usage_log[(ck, t)] = (
+                            self.link_usage_log.get((ck, t), 0) + 1
                         )
-                        self.link_log[
-                            (curr_h, next_h, tt)
-                        ] = curr_link_count + 1
-
-                        rev_link_count: int = self.link_log.get(
-                            (next_h, curr_h, tt), 0
-                        )
-                        self.link_log[
-                            (next_h, curr_h, tt)
-                        ] = rev_link_count + 1
-
-                        ck: Optional[
-                            Tuple[str, str]
-                        ] = self.parent_conn.get((curr_h, next_h))
-
-                        if ck is not None:
-                            curr_conn_count: int = self.connection_log.get(
-                                (ck, tt), 0
-                            )
-                            self.connection_log[
-                                (ck, tt)
-                            ] = curr_conn_count + 1
-
         return flight_plan
