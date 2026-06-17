@@ -55,10 +55,6 @@ class TrafficController:
         self.setup_connections()
         self.compute_dijkstra()
 
-    # ------------------------------------------------------------------
-    # Setup helpers
-    # ------------------------------------------------------------------
-
     def setup_hubs(self) -> None:
         """Registers all hubs (start, end, and intermediate) internally."""
         all_nodes: list[Node] = (
@@ -87,17 +83,15 @@ class TrafficController:
             a: str = conn.connection_a
             b: str = conn.connection_b
             cap: int = conn.max_link_capacity
-            canonical: tuple[str, str] = (min(a, b), max(a, b))
+            id_canonical: tuple[str, str] = (min(a, b), max(a, b))
 
-            # Register the direct link in both directions
             self.address_book[a].add(b)
             self.address_book[b].add(a)
             self.link_capacities[(a, b)] = cap
             self.link_capacities[(b, a)] = cap
-            self.parent_conn[(a, b)] = canonical
-            self.parent_conn[(b, a)] = canonical
+            self.parent_conn[(a, b)] = id_canonical
+            self.parent_conn[(b, a)] = id_canonical
 
-            # Create a waypoint at the midpoint of the connection
             wp: str = f"wp_{a}_{b}"
             xa, ya = self.hub_details[a][2], self.hub_details[a][3]
             xb, yb = self.hub_details[b][2], self.hub_details[b][3]
@@ -107,20 +101,16 @@ class TrafficController:
             self.address_book[wp] = set()
             self.generated_waypoints.append((wp, a, b, 0.5))
 
-            # Link A <-> wp <-> B
             src_node: str
             dst_node: str
             for src_node, dst_node in [(a, wp), (wp, a), (wp, b), (b, wp)]:
                 self.address_book[src_node].add(dst_node)
                 self.link_capacities[(src_node, dst_node)] = cap
-                self.parent_conn[(src_node, dst_node)] = canonical
+                self.parent_conn[(src_node, dst_node)] = id_canonical
 
-            self.parent_conn[wp] = canonical
+            self.parent_conn[wp] = id_canonical
 
-    # ------------------------------------------------------------------
-    # Phase 1: Dijkstra (backward heuristic)
-    # ------------------------------------------------------------------
-
+    # Phase 1: Dijkstra
     def compute_dijkstra(self) -> None:
         """Runs Dijkstra backward from the end hub.
 
@@ -162,10 +152,7 @@ class TrafficController:
             return 2
         return 1
 
-    # ------------------------------------------------------------------
-    # Phase 2: A* (time-expanded pathfinding)
-    # ------------------------------------------------------------------
-
+    # Phase 2: A*
     def compute_a_star(
         self,
     ) -> Optional[tuple[list[str], list[tuple[str, int]]]]:
@@ -178,13 +165,12 @@ class TrafficController:
             A (path, states) tuple, or None if no path exists within
             2000 turns.
         """
-        # origin[state] = parent state (used to rebuild the path)
+
         origin: dict[tuple[str, int], Optional[tuple[str, int]]] = {
             (self.start, 0): None
         }
         g_score: dict[tuple[str, int], float] = {(self.start, 0): 0.0}
 
-        # heap entries: (f, g, hub, turn)
         queue: list[tuple[float, float, str, int]] = [
             (0.0, 0.0, self.start, 0)
         ]
@@ -201,15 +187,12 @@ class TrafficController:
 
             state: tuple[str, int] = (hub, turn)
 
-            # Skip if we already found a better path to this state
             if g > g_score.get(state, float("inf")):
                 continue
 
-            # Goal reached
             if hub == self.end:
                 return self.rebuild_path(state, origin)
 
-            # Find where we came from (to avoid immediate backtracking)
             prev_hub: Optional[str] = None
             prev_state: Optional[tuple[str, int]] = origin.get(state)
             while prev_state is not None:
@@ -218,41 +201,38 @@ class TrafficController:
                     break
                 prev_state = origin.get(prev_state)
 
-            # Explore all neighbors (and the wait option)
             neighbors: list[str] = list(self.address_book[hub])
             if not hub.startswith("wp_"):
-                neighbors.append(hub)  # waiting in place
+                neighbors.append(hub)
 
             next_hub: str
             for next_hub in neighbors:
                 if next_hub == prev_hub:
-                    continue  # avoid immediate U-turn
+                    continue
 
-                # Cost to enter next_hub
-                cost: int = 1 if next_hub == hub else self.zone_cost(
-                    self.hub_details[next_hub][1]
-                )
+                if next_hub == hub:
+                    cost: int = 1
+                else:
+                    cost: int = self.zone_cost(self.hub_details[next_hub][1])
+
                 if cost == 0:
-                    continue  # blocked zone
+                    continue
 
                 end_turn: int = turn + cost
                 next_state: tuple[str, int] = (next_hub, end_turn)
 
-                # Check hub capacity
-                if self._hub_is_full(next_hub, turn, end_turn):
+                if self.hub_is_full(next_hub, turn, end_turn):
                     continue
 
-                # Check link capacity (only when actually moving)
-                if next_hub != hub and self._link_is_full(
+                if next_hub != hub and self.link_is_full(
                     hub, next_hub, turn, end_turn
                 ):
                     continue
 
-                # Penalties: tiny nudge to prefer moving over waiting,
-                # and a bigger penalty for moving away from the goal
                 penalty: float = 0.0
                 if next_hub == hub:
-                    penalty += 1e-6
+                    penalty += 0.000001
+
                 h_now: float = self.distance_to_end.get(hub, float("inf"))
                 h_next: float = self.distance_to_end.get(
                     next_hub, float("inf")
@@ -270,11 +250,7 @@ class TrafficController:
 
         return None
 
-    # ------------------------------------------------------------------
-    # Capacity checks
-    # ------------------------------------------------------------------
-
-    def _hub_is_full(
+    def hub_is_full(
         self, hub: str, current_turn: int, end_turn: int
     ) -> bool:
         """Returns True if the hub is already at capacity during the move.
@@ -288,7 +264,7 @@ class TrafficController:
             bool: True if full, False if space is available.
         """
         if hub == self.start:
-            return False  # start zone has unlimited capacity
+            return False
 
         max_cap: int = self.hub_details[hub][0]
         t: int
@@ -297,7 +273,7 @@ class TrafficController:
                 return True
         return False
 
-    def _link_is_full(
+    def link_is_full(
         self, src: str, dst: str, current_turn: int, end_turn: int
     ) -> bool:
         """Returns True if the link is already at capacity during the move.
@@ -323,10 +299,6 @@ class TrafficController:
                 return True
         return False
 
-    # ------------------------------------------------------------------
-    # Path reconstruction
-    # ------------------------------------------------------------------
-
     def rebuild_path(
         self,
         final_state: tuple[str, int],
@@ -350,7 +322,6 @@ class TrafficController:
 
         states.reverse()
 
-        # Expand states into a per-turn list of hub names
         path: list[str] = [states[0][0]]
         i: int
         for i in range(len(states) - 1):
@@ -361,10 +332,7 @@ class TrafficController:
 
         return path, states
 
-    # ------------------------------------------------------------------
-    # Phase 3: sequential multi-drone planning
-    # ------------------------------------------------------------------
-
+    # Phase 3: planning flight
     def get_traffic_plan(self) -> dict[str, list[str]]:
         """Generates flight plans for every drone one by one.
 
@@ -400,7 +368,6 @@ class TrafficController:
                     self.hub_usage_log.get(state, 0) + 1
                 )
 
-            # Commit the drone's link occupancy for each move
             j: int
             src: str
             t_src: int
@@ -411,7 +378,7 @@ class TrafficController:
                 dst, t_dst = states[j + 1]
 
                 if src == dst:
-                    continue  # drone waited — no link used
+                    continue
 
                 ck: Optional[tuple[str, str]] = self.parent_conn.get(
                     (src, dst)
