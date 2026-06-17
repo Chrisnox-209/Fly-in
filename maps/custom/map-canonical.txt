@@ -1,0 +1,26 @@
+nb_drones: 2
+
+start_hub: start 0 2 [color=green max_drones=2]
+end_hub: goal 4 2 [color=green max_drones=2]
+
+hub: node_Sud 2 0 [color=blue max_drones=1 zone=priority]
+hub: node_Nord 2 4 [color=blue max_drones=1 zone=priority]
+hub: node_center 2 2 [color=blue max_drones=1]
+hub: node_Ouest 1 2 [color=blue max_drones=1]
+hub: node_Ouest_sud 1 1 [color=blue max_drones=1 zone=priority]
+hub: node_Ouest_nord 1 3 [color=blue max_drones=1 zone=priority]
+hub: node_Est 3 2 [color=blue max_drones=1 zone=restricted ]
+
+connection: start-node_Ouest [max_link_capacity=2]
+connection: node_Ouest-node_Ouest_sud [max_link_capacity=1]
+connection: node_Ouest_sud-node_Nord [max_link_capacity=1]
+connection: node_Ouest_sud-node_Sud [max_link_capacity=1]
+connection: node_Ouest-node_Ouest_nord [max_link_capacity=1]
+connection: node_Ouest_nord-node_Nord [max_link_capacity=1]
+connection: node_Ouest_nord-node_Sud [max_link_capacity=1]
+connection: node_Ouest-node_center [max_link_capacity=1]
+connection: node_center-node_Est [max_link_capacity=1]
+connection: node_Nord-node_Est [max_link_capacity=1]
+connection: node_Sud-node_Est [max_link_capacity=1]
+connection: node_Nord-node_Sud [max_link_capacity=1]
+connection: node_Est-goal [max_link_capacity=2]
