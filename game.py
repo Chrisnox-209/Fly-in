@@ -151,10 +151,7 @@ class SimpleGame:
         flight_plan: dict[str, list[str]] = tarmac.get_traffic_plan()
         print_simulation_output(flight_plan, self.map_path)
 
-        if flight_plan:
-            self.total_turns = max(
-                len(plan) for plan in flight_plan.values()
-            ) - 1
+        self.total_turns = tarmac.get_total_turns()
 
         drone_id: str
         plan: list[str]
@@ -472,19 +469,11 @@ class SimpleGame:
         Args:
             screen: The main Pygame surface.
         """
-        if not self.renderer.drones_sprites:
-            return
-
         current_turn: int = 0
-        drone: VisualDrone
-        for drone in self.renderer.drones_sprites:
-            if drone.step > current_turn:
-                current_turn = drone.step
-
-        if current_turn > self.total_turns:
-            current_turn = self.total_turns
-
-        label: str = f"{current_turn} / {self.total_turns}"
+        if self.renderer.drones_sprites:
+            current_turn = max(d.step for d in self.renderer.drones_sprites)
+        display_turn: int = min(current_turn, self.total_turns)
+        label: str = f"{display_turn} / {self.total_turns}"
 
         font_counter: pygame.font.Font = pygame.font.SysFont(
             "arial", 42, bold=True
