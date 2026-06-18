@@ -24,32 +24,17 @@ class TrafficController:
             map_data (Global): The parsed map data.
         """
         self.map_data: Global = map_data
-
-        # hub_details[name] = (max_drones, zone, x, y)
         self.hub_details: dict[str, tuple[int, str, float, float]] = {}
-
-        # address_book[name] = set of directly reachable hub names
         self.address_book: dict[str, set[str]] = {}
-
         self.start: str = map_data.glb_start.name
         self.end: str = map_data.glb_end.name
-
-        # link_capacities[(a, b)] = max simultaneous drones on that link
         self.link_capacities: dict[tuple[str, str], int] = {}
-
-        # parent_conn maps any directed link to its canonical (min,max) key
         self.parent_conn: dict[object, tuple[str, str]] = {}
-
-        # Hub reservations: (hub_name, turn) -> count
         self.hub_usage_log: dict[tuple[str, int], int] = {}
-        # Link reservations: ((hub_a, hub_b), turn) -> count (canonical tuple)
         self.link_usage_log: dict[tuple[tuple[str, str], int], int] = {}
-
-        # Heuristic: distance from each hub to the end hub
         self.distance_to_end: dict[str, float] = {}
-        # Visual waypoints: (wp_name, node_a, node_b, fraction)
-        # Used by game.py to position waypoints on screen
         self.generated_waypoints: list[tuple[str, str, str, float]] = []
+        self.total_simulation_turns: int = 0
 
         self.setup_hubs()
         self.setup_connections()
@@ -78,6 +63,10 @@ class TrafficController:
         midpoint. This lets the solver track drones in transit separately
         from drones sitting at a hub.
         """
+        xa: float
+        ya: float
+        xb: float
+        yb: float
         conn: Connection
         for conn in self.map_data.glb_connection:
             a: str = conn.connection_a
@@ -132,12 +121,12 @@ class TrafficController:
             for neighbor in self.address_book[node]:
                 if neighbor in self.distance_to_end:
                     continue
-                cost: int = self.zone_cost(self.hub_details[node][1])
+                cost: float = self.zone_cost(self.hub_details[node][1])
                 if cost > 0:
                     heapq.heappush(queue, (dist + cost, neighbor))
 
     @staticmethod
-    def zone_cost(zone: str) -> int:
+    def zone_cost(zone: str) -> float:
         """Returns the turn cost to enter a zone.
 
         Args:
@@ -147,10 +136,12 @@ class TrafficController:
             int: 0 for blocked, 2 for restricted, 1 otherwise.
         """
         if zone == "blocked":
-            return 0
+            return 0.0
         if zone == "restricted":
-            return 2
-        return 1
+            return 2.0
+        if zone == "normal":
+            return 1.0
+        return 0.5
 
     # Phase 2: A*
     def compute_a_star(
@@ -210,15 +201,13 @@ class TrafficController:
                 if next_hub == prev_hub:
                     continue
 
-                if next_hub == hub:
-                    cost: int = 1
                 else:
-                    cost: int = self.zone_cost(self.hub_details[next_hub][1])
+                    cost: float = self.zone_cost(self.hub_details[next_hub][1])
 
                 if cost == 0:
                     continue
 
-                end_turn: int = turn + cost
+                end_turn: int = turn + 1
                 next_state: tuple[str, int] = (next_hub, end_turn)
 
                 if self.hub_is_full(next_hub, turn, end_turn):
@@ -231,14 +220,14 @@ class TrafficController:
 
                 penalty: float = 0.0
                 if next_hub == hub:
-                    penalty += 0.000001
+                    penalty += 2.0
 
                 h_now: float = self.distance_to_end.get(hub, float("inf"))
                 h_next: float = self.distance_to_end.get(
                     next_hub, float("inf")
                 )
                 if h_next > h_now:
-                    penalty += 2.0
+                    penalty += 8.0
 
                 next_g: float = g + cost + penalty
 
@@ -263,7 +252,8 @@ class TrafficController:
         Returns:
             bool: True if full, False if space is available.
         """
-        if hub == self.start:
+
+        if hub == self.start or hub == self.end:
             return False
 
         max_cap: int = self.hub_details[hub][0]
@@ -389,4 +379,21 @@ class TrafficController:
                         self.link_usage_log[(ck, t)] = (
                             self.link_usage_log.get((ck, t), 0) + 1
                         )
+
+        if flight_plan:
+            max_path_length: int = 0
+
+            for path in flight_plan.values():
+                path_length: int = len(path)
+
+                if path_length > max_path_length:
+                    max_path_length = path_length
+
+            self.total_simulation_turns = max_path_length - 1
+        else:
+            self.total_simulation_turns = 0
+
         return flight_plan
+
+    def get_total_turns(self) -> int:
+        return self.total_simulation_turns
