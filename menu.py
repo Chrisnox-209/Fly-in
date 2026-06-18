@@ -4,6 +4,8 @@ import cv2  # type: ignore[import-untyped, unused-ignore]
 import pygame
 from typing import Optional
 
+from pygame.font import Font
+
 
 class Menu:
     """Manages the main menu UI, background video, and map navigation.
@@ -30,10 +32,10 @@ class Menu:
         self.direction: int = 1
 
         # Fonts
-        self.font_title = pygame.font.SysFont("arial", 80, bold=True)
-        self.font_btn = pygame.font.SysFont("arial", 50)
-        self.font_sub = pygame.font.SysFont("arial", 25, bold=True)
-        self.font_err = pygame.font.SysFont("arial", 40, bold=True)
+        self.font_title: Font = pygame.font.SysFont("arial", 80, bold=True)
+        self.font_btn: Font = pygame.font.SysFont("arial", 50)
+        self.font_sub: Font = pygame.font.SysFont("arial", 25, bold=True)
+        self.font_err: Font = pygame.font.SysFont("arial", 40, bold=True)
 
         # State
         self.state: str = "CATEGORIES"
@@ -158,9 +160,9 @@ class Menu:
             for i, cat in enumerate(self.cats):
                 rect = pygame.Rect(200, 650 + i * 120, 950, 90)
                 if self._btn(screen, cat, rect):
-                    path = os.path.join("maps", cat)
+                    path: str = os.path.join("maps", cat)
                     if os.path.exists(path):
-                        files = [
+                        files: list[str] = [
                             f for f in os.listdir(path) if f.endswith(".txt")
                         ]
                         if files:
@@ -179,7 +181,7 @@ class Menu:
                 sys.exit()
 
         elif self.state == "MAPS":
-            title = f"MAPS: {self.category.upper()}"
+            title: str = f"MAPS: {self.category.upper()}"
             screen.blit(
                 self.font_title.render(title, True, title_color), (200, 550)
             )
@@ -205,8 +207,9 @@ class Menu:
             if pygame.time.get_ticks() - self.error_time < 3000:
                 lines: list[str] = self.error_msg.splitlines()
                 for i, line in enumerate(lines):
-                    err = self.font_err.render(line, True, (255, 255, 255))
-                    br = err.get_rect(
+                    err: pygame.Surface = self.font_err.render(
+                        line, True, (255, 255, 255))
+                    br: pygame.Rect = err.get_rect(
                         center=(self.width // 2, 60 + i * 70)
                     ).inflate(40, 20)
                     pygame.draw.rect(
