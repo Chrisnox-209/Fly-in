@@ -10,11 +10,11 @@ class GifConverter:
         self.filename: str = filename
         self.size: tuple[int, int] | None = size
         self.frames: list[pygame.Surface] = []
-        self._load_frames()
+        self.load_frames()
         self.last_update: int = pygame.time.get_ticks()
         self.current_frame: int = 0
 
-    def _load_frames(self) -> None:
+    def load_frames(self) -> None:
         try:
             image: PILImage = Image.open(self.filename)
             for frame_index in range(getattr(image, 'n_frames', 1)):
