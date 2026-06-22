@@ -213,6 +213,12 @@ class Global(BaseModel):
         return self
 
     @model_validator(mode="after")
+    def size_hub(self) -> Self:
+        self.glb_start.max_drones = self.glb_drones.drone_count
+        self.glb_end.max_drones = self.glb_drones.drone_count
+        return self
+
+    @model_validator(mode="after")
     def check_coordinates(self) -> Self:
         """Validates that no two hubs share the same coordinates.
 
