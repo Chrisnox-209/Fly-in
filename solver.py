@@ -358,6 +358,14 @@ class TrafficController:
                     self.hub_usage_log.get(state, 0) + 1
                 )
 
+            last_hub: str
+            last_turn: int
+            last_hub, last_turn = states[-1]
+            if last_hub == self.end:
+                for t in range(last_turn + 1, 2000):
+                    self.hub_usage_log[(self.end,
+                                        t)] = self.hub_usage_log.get(
+                                            (self.end, t), 0) + 1
             j: int
             src: str
             t_src: int
@@ -392,7 +400,6 @@ class TrafficController:
             self.total_simulation_turns = max_path_length - 1
         else:
             self.total_simulation_turns = 0
-
         return flight_plan
 
     def get_total_turns(self) -> int:
