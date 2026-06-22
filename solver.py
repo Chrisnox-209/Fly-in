@@ -221,6 +221,14 @@ class TrafficController:
                 penalty: float = 0.0
                 if next_hub == hub:
                     penalty += 2.0
+                    
+                if self.hub_details[next_hub][1] == "restricted":
+                    if turn % 2 == 0:
+                        penalty += 15.0
+                    else:
+                        penalty += 2.0
+                if self.hub_details[next_hub][1] == "normal":
+                    penalty += 0.5
 
                 h_now: float = self.distance_to_end.get(hub, float("inf"))
                 h_next: float = self.distance_to_end.get(
