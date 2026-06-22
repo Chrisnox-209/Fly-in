@@ -382,7 +382,6 @@ class TrafficController:
                     (src, dst)
                 )
                 if ck is not None:
-                    t: int
                     for t in range(t_src, t_dst):
                         self.link_usage_log[(ck, t)] = (
                             self.link_usage_log.get((ck, t), 0) + 1
