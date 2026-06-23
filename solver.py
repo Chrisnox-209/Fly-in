@@ -1,5 +1,5 @@
 import heapq
-from typing import Optional
+from typing import Optional, Any
 from parser import Global
 from structure import Node, Connection
 
@@ -32,9 +32,11 @@ class TrafficController:
         self.parent_conn: dict[object, tuple[str, str]] = {}
         self.hub_usage_log: dict[tuple[str, int], int] = {}
         self.link_usage_log: dict[tuple[tuple[str, str], int], int] = {}
+        self.link_details: dict[tuple[str, str], tuple[int]] = {}
         self.distance_to_end: dict[str, float] = {}
         self.generated_waypoints: list[tuple[str, str, str, float]] = []
         self.total_simulation_turns: int = 0
+        self.nb_drone: int = map_data.glb_drones.drone_count
 
         self.setup_hubs()
         self.setup_connections()
@@ -73,6 +75,7 @@ class TrafficController:
             b: str = conn.connection_b
             cap: int = conn.max_link_capacity
             id_canonical: tuple[str, str] = (min(a, b), max(a, b))
+            self.link_details[id_canonical] = (cap,)
 
             self.address_book[a].add(b)
             self.address_book[b].add(a)
@@ -221,7 +224,7 @@ class TrafficController:
                 penalty: float = 0.0
                 if next_hub == hub:
                     penalty += 2.0
-                    
+
                 if self.hub_details[next_hub][1] == "restricted":
                     if turn % 2 == 0:
                         penalty += 15.0
@@ -261,39 +264,33 @@ class TrafficController:
             bool: True if full, False if space is available.
         """
 
-        if hub == self.start or hub == self.end:
+        if hub == self.start:
             return False
 
         max_cap: int = self.hub_details[hub][0]
-        t: int
+        usage: int
         for t in range(current_turn + 1, end_turn + 1):
-            if self.hub_usage_log.get((hub, t), 0) >= max_cap:
+            usage, cap = self.hub_usage_log.get((hub, t), (0, max_cap))
+
+            if usage >= max_cap:
                 return True
         return False
 
     def link_is_full(
         self, src: str, dst: str, current_turn: int, end_turn: int
     ) -> bool:
-        """Returns True if the link is already at capacity during the move.
+        max_cap: int = self.link_capacities[(src, dst)]
 
-        Args:
-            src (str): Departure hub.
-            dst (str): Destination hub.
-            current_turn (int): Turn the drone departs.
-            end_turn (int): Turn the drone arrives.
+        link_id: Optional[tuple[str, str]] = self.parent_conn.get((src, dst))
 
-        Returns:
-            bool: True if full, False if space is available.
-        """
-        cap: int = self.link_capacities[(src, dst)]
-        canonical: Optional[tuple[str, str]] = self.parent_conn.get((src, dst))
-
-        if canonical is None:
+        if link_id is None:
             return False
 
         t: int
         for t in range(current_turn, end_turn):
-            if self.link_usage_log.get((canonical, t), 0) >= cap:
+            current_usage: int = self.link_usage_log.get(
+                (link_id, t), (0, max_cap))[0]
+            if current_usage >= max_cap:
                 return True
         return False
 
@@ -348,9 +345,10 @@ class TrafficController:
         self.link_usage_log.clear()
 
         i: int
-        for i in range(self.map_data.glb_drones.drone_count):
+        for i in range(self.nb_drone):
             result: tuple[list[str],
-                          list[tuple[str, int]]] | None = self.compute_a_star()
+                          list[tuple[str, int]]
+                          ] | None = self.compute_a_star()
             if result is None:
                 raise ValueError("Impossible to resolve map")
 
@@ -360,25 +358,19 @@ class TrafficController:
             drone_id: str = f"D{i}"
             flight_plan[drone_id] = path
 
-            state: tuple[str, int]
-            for state in states:
-                self.hub_usage_log[state] = (
-                    self.hub_usage_log.get(state, 0) + 1
-                )
+            for hub, turn in states:
+                state: tuple[str, int] = (hub, turn)
+                max_cap = self.hub_details[hub][0]
+                current_usage: int | tuple[int, int] = self.hub_usage_log.get(
+                    state, (0, max_cap))[0]
+                self.hub_usage_log[state] = (current_usage + 1, max_cap)
 
-            last_hub: str
-            last_turn: int
-            last_hub, last_turn = states[-1]
-            if last_hub == self.end:
-                for t in range(last_turn + 1, 2000):
-                    self.hub_usage_log[(self.end,
-                                        t)] = self.hub_usage_log.get(
-                                            (self.end, t), 0) + 1
             j: int
             src: str
             t_src: int
             dst: str
             t_dst: int
+
             for j in range(len(states) - 1):
                 src, t_src = states[j]
                 dst, t_dst = states[j + 1]
@@ -386,14 +378,17 @@ class TrafficController:
                 if src == dst:
                     continue
 
-                ck: Optional[tuple[str, str]] = self.parent_conn.get(
-                    (src, dst)
-                )
-                if ck is not None:
+                link_id: Optional[tuple[str, str]
+                                  ] = self.parent_conn.get((src, dst))
+
+                if link_id is not None:
+                    max_link_cap: int = self.link_details[link_id][0]
                     for t in range(t_src, t_dst):
-                        self.link_usage_log[(ck, t)] = (
-                            self.link_usage_log.get((ck, t), 0) + 1
-                        )
+                        usage_data = self.link_usage_log.get(
+                            (link_id, t), (0, max_link_cap))
+                        current_link_usage = usage_data[0]
+                        self.link_usage_log[(link_id, t)] = (
+                            current_link_usage + 1, max_link_cap)
 
         if flight_plan:
             max_path_length: int = 0
@@ -407,6 +402,23 @@ class TrafficController:
             self.total_simulation_turns = max_path_length - 1
         else:
             self.total_simulation_turns = 0
+
+        unique_links: set[tuple[str, str]] = set(self.parent_conn.values())
+        for t in range(self.total_simulation_turns):
+            for hub_name in self.hub_details:
+                if not hub_name.startswith("wp_"):
+                    state = (hub_name, t)
+                    if state not in self.hub_usage_log:
+                        max_cap: int = self.hub_details[hub_name][0]
+                        self.hub_usage_log[state] = (0, max_cap)
+
+            for link_id in unique_links:
+                if not link_id[0].startswith("wp_") and not link_id[1].startswith("wp_"):
+                    state = (link_id, t)
+                    if state not in self.link_usage_log:
+                        max_cap = self.link_capacities[link_id]
+                        self.link_usage_log[state] = (0, max_cap)
+        print(flight_plan)
         return flight_plan
 
     def get_total_turns(self) -> int:
