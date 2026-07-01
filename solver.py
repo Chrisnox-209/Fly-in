@@ -418,7 +418,6 @@ class TrafficController:
                     if state not in self.link_usage_log:
                         max_cap = self.link_capacities[link_id]
                         self.link_usage_log[state] = (0, max_cap)
-        print(flight_plan)
         return flight_plan
 
     def get_total_turns(self) -> int:
