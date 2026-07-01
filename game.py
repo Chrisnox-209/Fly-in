@@ -408,33 +408,42 @@ class SimpleGame:
             if current_turn > self.total_turns:
                 current_turn = self.total_turns
 
-        drone_count: tuple[int, int] | int = 0
+        drone_count: int = 0
+        cap: int = 0
         if hovered_node and node_obj:
-            drone_count = self.traffic_controller.hub_usage_log.get(
-                (hovered_node, current_turn), 0
+            log_entry: tuple[int, int] | None = (
+                self.traffic_controller.hub_usage_log.get(
+                    (hovered_node, current_turn)
+                )
             )
+            if log_entry is not None:
+                drone_count = log_entry[0]
+                cap = log_entry[1]
+            else:
+                cap = node_obj.capacity
         elif hovered_conn:
             ca: str = hovered_conn.connection_a
             cb: str = hovered_conn.connection_b
             canonical: tuple[str, str] = (min(ca, cb), max(ca, cb))
-            drone_count = self.traffic_controller.link_usage_log.get(
-                (canonical, current_turn), 0
+            log_entry = self.traffic_controller.link_usage_log.get(
+                (canonical, current_turn)
             )
+            if log_entry is not None:
+                drone_count = log_entry[0]
+                cap = log_entry[1]
+            else:
+                cap = hovered_conn.max_link_capacity
 
         font: pygame.font.Font = pygame.font.SysFont(None, 36)
         label: str
-        cap: int
         if hovered_node and node_obj:
             label = f"Hub: {hovered_node}"
-            cap = node_obj.capacity
         elif hovered_conn:
             ca = hovered_conn.connection_a
             cb = hovered_conn.connection_b
             label = f"Conn: {ca} <-> {cb}"
-            cap = hovered_conn.max_link_capacity
         else:
             label = "Unknown"
-            cap = 0
 
         text1: pygame.Surface = font.render(label, True, (255, 255, 255))
         text2: pygame.Surface = font.render(
