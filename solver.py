@@ -1,5 +1,5 @@
 import heapq
-from typing import Optional, Any
+from typing import Optional
 from parser import Global
 from structure import Node, Connection
 
@@ -29,9 +29,10 @@ class TrafficController:
         self.start: str = map_data.glb_start.name
         self.end: str = map_data.glb_end.name
         self.link_capacities: dict[tuple[str, str], int] = {}
-        self.parent_conn: dict[object, tuple[str, str]] = {}
-        self.hub_usage_log: dict[tuple[str, int], int] = {}
-        self.link_usage_log: dict[tuple[tuple[str, str], int], int] = {}
+        self.parent_conn: dict[str | tuple[str, str], tuple[str, str]] = {}
+        self.hub_usage_log: dict[tuple[str, int], tuple[int, int]] = {}
+        self.link_usage_log: dict[tuple[tuple[str, str], int], tuple[
+            int, int]] = {}
         self.link_details: dict[tuple[str, str], tuple[int]] = {}
         self.distance_to_end: dict[str, float] = {}
         self.generated_waypoints: list[tuple[str, str, str, float]] = []
@@ -136,7 +137,8 @@ class TrafficController:
             zone (str): Zone type name.
 
         Returns:
-            int: 0 for blocked, 2 for restricted, 1 otherwise.
+            float: 0.0 for blocked, 2.0 for restricted, 1.0 for normal,
+                0.5 otherwise.
         """
         if zone == "blocked":
             return 0.0
@@ -200,12 +202,13 @@ class TrafficController:
                 neighbors.append(hub)
 
             next_hub: str
+            cost: float
             for next_hub in neighbors:
                 if next_hub == prev_hub:
                     continue
 
                 else:
-                    cost: float = self.zone_cost(self.hub_details[next_hub][1])
+                    cost = self.zone_cost(self.hub_details[next_hub][1])
 
                 if cost == 0:
                     continue
@@ -269,6 +272,7 @@ class TrafficController:
 
         max_cap: int = self.hub_details[hub][0]
         usage: int
+        cap: int
         for t in range(current_turn + 1, end_turn + 1):
             usage, cap = self.hub_usage_log.get((hub, t), (0, max_cap))
 
@@ -279,6 +283,17 @@ class TrafficController:
     def link_is_full(
         self, src: str, dst: str, current_turn: int, end_turn: int
     ) -> bool:
+        """Returns True if the link is already at capacity during the move.
+
+        Args:
+            src (str): Node the drone departs from.
+            dst (str): Node the drone arrives at.
+            current_turn (int): Turn the drone departs.
+            end_turn (int): Turn the drone arrives.
+
+        Returns:
+            bool: True if full, False if space is available.
+        """
         max_cap: int = self.link_capacities[(src, dst)]
 
         link_id: Optional[tuple[str, str]] = self.parent_conn.get((src, dst))
@@ -346,9 +361,9 @@ class TrafficController:
 
         i: int
         for i in range(self.nb_drone):
-            result: tuple[list[str],
-                          list[tuple[str, int]]
-                          ] | None = self.compute_a_star()
+            result: Optional[
+                tuple[list[str], list[tuple[str, int]]]
+            ] = self.compute_a_star()
             if result is None:
                 raise ValueError("Impossible to resolve map")
 
@@ -358,12 +373,14 @@ class TrafficController:
             drone_id: str = f"D{i}"
             flight_plan[drone_id] = path
 
+            hub: str
+            turn: int
             for hub, turn in states:
-                state: tuple[str, int] = (hub, turn)
-                max_cap = self.hub_details[hub][0]
-                current_usage: int | tuple[int, int] = self.hub_usage_log.get(
-                    state, (0, max_cap))[0]
-                self.hub_usage_log[state] = (current_usage + 1, max_cap)
+                hub_state: tuple[str, int] = (hub, turn)
+                max_cap: int = self.hub_details[hub][0]
+                data: tuple[int, int] = self.hub_usage_log.get(
+                    hub_state, (0, max_cap))
+                self.hub_usage_log[hub_state] = (data[0] + 1, data[1])
 
             j: int
             src: str
@@ -384,11 +401,14 @@ class TrafficController:
                 if link_id is not None:
                     max_link_cap: int = self.link_details[link_id][0]
                     for t in range(t_src, t_dst):
-                        usage_data = self.link_usage_log.get(
-                            (link_id, t), (0, max_link_cap))
-                        current_link_usage = usage_data[0]
-                        self.link_usage_log[(link_id, t)] = (
-                            current_link_usage + 1, max_link_cap)
+                        link_key: tuple[tuple[str, str], int] = (
+                            link_id, t)
+
+                        usage_data: tuple[int, int] = (
+                            self.link_usage_log.get(
+                                link_key, (0, max_link_cap)))
+                        self.link_usage_log[link_key] = (
+                            usage_data[0] + 1, max_link_cap)
 
         if flight_plan:
             max_path_length: int = 0
@@ -407,17 +427,18 @@ class TrafficController:
         for t in range(self.total_simulation_turns):
             for hub_name in self.hub_details:
                 if not hub_name.startswith("wp_"):
-                    state = (hub_name, t)
-                    if state not in self.hub_usage_log:
-                        max_cap: int = self.hub_details[hub_name][0]
-                        self.hub_usage_log[state] = (0, max_cap)
+                    hub_state = (hub_name, t)
+                    if hub_state not in self.hub_usage_log:
+                        max_cap = self.hub_details[hub_name][0]
+                        self.hub_usage_log[hub_state] = (0, max_cap)
 
             for link_id in unique_links:
-                if not link_id[0].startswith("wp_") and not link_id[1].startswith("wp_"):
-                    state = (link_id, t)
-                    if state not in self.link_usage_log:
+                if not link_id[0].startswith(
+                     "wp_") and not link_id[1].startswith("wp_"):
+                    link_key = (link_id, t)
+                    if link_key not in self.link_usage_log:
                         max_cap = self.link_capacities[link_id]
-                        self.link_usage_log[state] = (0, max_cap)
+                        self.link_usage_log[link_key] = (0, max_cap)
         return flight_plan
 
     def get_total_turns(self) -> int:

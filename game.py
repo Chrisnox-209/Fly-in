@@ -408,7 +408,7 @@ class SimpleGame:
             if current_turn > self.total_turns:
                 current_turn = self.total_turns
 
-        drone_count: int = 0
+        drone_count: tuple[int, int] | int = 0
         if hovered_node and node_obj:
             drone_count = self.traffic_controller.hub_usage_log.get(
                 (hovered_node, current_turn), 0
