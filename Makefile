@@ -24,7 +24,7 @@ lint:
 
 lint-strict:
 	@uv run python3 -m mypy .  $(MYPY_FLAGS) $(MYPY_STRICT)
-	@uv run python3 -m flake8 --exclude .venv . $(LAKE_STRICT)
+	@uv run python3 -m flake8 --exclude .venv . $(FLAKE_STRICТ)
 
 debug:
 	@uv run python3 -m pdb $(MAIN)

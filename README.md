@@ -60,10 +60,10 @@ Each hub has a zone type that determines how many turns it costs to enter:
 
 | Zone       | Symbol | Cost | Meaning                          |
 |------------|--------|------|----------------------------------|
-| Normal     | —      | `1`  | Standard traversal               |
-| Priority   | `P`    | `1`  | Standard cost, preferred         |
-| Restricted | `!`    | `2`  | Requires 2 turns to pass through |
-| Blocked    | `X`    | `∞`  | Cannot be entered — skipped      |
+| Normal     | —      | `1.0`| Standard traversal               |
+| Priority   | `P`    | `0.5`| Standard cost, preferred         |
+| Restricted | `!`    | `2.0`| Requires 2 turns to pass through |
+| Blocked    | `X`    | `0.0`| Cannot be entered — skipped      |
 
 > This phase runs **once**, before any drone is planned. Its result is reused for every drone.
 
@@ -104,19 +104,20 @@ h(s) = estimated cost remaining
      = distance_to_end[next_hub]  (from Phase 1)
 ```
 
-| Penalty             | Value  | When applied                                     |
-|---------------------|--------|--------------------------------------------------|
-| `wait_penalty`      | `1e-6` | Drone stays at the same hub                      |
-| `backtrack_penalty` | `2.0`  | Next hub is further from the goal than current   |
+| Penalty             | Value           | When applied                                     |
+|---------------------|-----------------|--------------------------------------------------|
+| `wait_penalty`      | `2.0`           | Drone stays at the same hub                      |
+| `backtrack_penalty` | `8.0`           | Next hub is further from the goal than current   |
+| `restricted_zone`   | `15.0` or `2.0` | Depends on turn parity (`15.0` if turn % 2 == 0) |
+| `normal_zone`       | `0.5`           | Drone enters a normal hub                        |
 
-**Helper functions used inside `compute_a_star()`:**
+**Helper functions used by `TrafficController`:**
 
-- `get_previous_hub()` — finds the hub the drone came from, to avoid going back immediately
-- `get_possible_neighbors()` — lists all reachable next hubs (neighbors + wait option)
-- `is_hub_full()` — checks if the destination hub has capacity for the drone
-- `is_route_full()` — checks if the link between two hubs has capacity
-- `calculate_penalties()` — computes the wait and backtrack penalties
-- `reconstruct_path()` — traces back the full path once the end is reached
+- `hub_is_full()` — checks if the destination hub has capacity for the drone
+- `link_is_full()` — checks if the link between two hubs has capacity
+- `rebuild_path()` — traces back the full path once the end is reached
+
+> Note: finding previous hubs, gathering neighbors, and calculating dynamic penalties are handled directly within the main `compute_a_star()` loop.
 
 **Waypoints:** For every connection `A–B`, a virtual intermediate node `wp_A_B` is created at the midpoint. This allows the solver to track drones that are *in transit* on a link separately from drones *at a hub*, enabling precise capacity checks on restricted zones that take 2 turns to cross.
 
@@ -137,12 +138,11 @@ A  ──►  wp_A_B  ──►  B
 Two dictionaries track how many drones occupy each location at each turn:
 
 ```python
-flight_log[(hub, turn)]           # how many drones are at this hub at this turn
-link_log[(hub_a, hub_b, turn)]    # how many drones are on this link at this turn
-connection_log[(conn_key, turn)]  # bidirectional link count (prevents double-booking)
+hub_usage_log[(hub, turn)]        # how many drones are at this hub at this turn
+link_usage_log[(link_id, turn)]   # how many drones are on this link at this turn
 ```
 
-Before exploring a move, the solver calls `is_hub_full()` and `is_route_full()` to reject any move that would exceed a capacity limit. This ensures **no invalid state is ever explored**.
+Before exploring a move, the solver calls `hub_is_full()` and `link_is_full()` to reject any move that would exceed a capacity limit. This ensures **no invalid state is ever explored**.
 
 #### Sequential Drone Routing
 
@@ -431,7 +431,7 @@ make clean
 | **Algorithm debugging** | Identifying edge cases in the A* time-expanded state space            |
 | **Bug fixes**           | Various bug fixes across the solver and parser                        |
 | **Code quality**        | Resolving `mypy --strict` and `flake8` errors across all source files |
-| **Code refactoring**    | Splitting `solver.py` into smaller, clearly named helper functions    |
+| **Code adjustments**    | Integrating dynamic penalties inline within the A* loop               |
 | **Map design**          | Generating complex test maps (extreme maze, hardcore maze)            |
 | **README**              | Drafting and restructuring this document                              |
 

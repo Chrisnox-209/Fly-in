@@ -60,10 +60,10 @@ Chaque hub possède un type de zone qui détermine combien de tours il coûte po
 
 | Zone        | Symbole | Coût | Signification                         |
 |-------------|---------|------|---------------------------------------|
-| Normale     | —       | `1`  | Traversée standard                    |
-| Prioritaire | `P`     | `1`  | Coût standard, préféré                |
-| Restreinte  | `!`     | `2`  | Nécessite 2 tours pour traverser      |
-| Bloquée     | `X`     | `∞`  | Inaccessible — ignorée                |
+| Normale     | —       | `1.0`| Traversée standard                    |
+| Prioritaire | `P`     | `0.5`| Coût standard, préféré                |
+| Restreinte  | `!`     | `2.0`| Nécessite 2 tours pour traverser      |
+| Bloquée     | `X`     | `0.0`| Inaccessible — ignorée                |
 
 > Cette phase s'exécute **une seule fois**, avant qu'un drone soit planifié. Son résultat est réutilisé pour chaque drone.
 
@@ -104,19 +104,20 @@ h(s) = coût estimé restant
      = distance_to_end[hub_suivant]  (depuis la Phase 1)
 ```
 
-| Pénalité             | Valeur | Quand appliquée                                        |
-|----------------------|--------|--------------------------------------------------------|
-| `pénalité_attente`   | `1e-6` | Le drone reste sur le même hub                         |
-| `pénalité_recul`     | `2.0`  | Le hub suivant est plus loin du but que le hub actuel  |
+| Pénalité             | Valeur          | Quand appliquée                                        |
+|----------------------|-----------------|--------------------------------------------------------|
+| `pénalité_attente`   | `2.0`           | Le drone reste sur le même hub                         |
+| `pénalité_recul`     | `8.0`           | Le hub suivant est plus loin du but que le hub actuel  |
+| `zone_restreinte`    | `15.0` ou `2.0` | Dépend de la parité du tour (`15.0` si tour % 2 == 0)  |
+| `zone_normale`       | `0.5`           | Le drone entre dans un hub normal                      |
 
-**Fonctions d'aide utilisées dans `compute_a_star()` :**
+**Fonctions d'aide utilisées par `TrafficController` :**
 
-- `get_previous_hub()` — retrouve le hub depuis lequel le drone est arrivé, pour éviter de revenir immédiatement
-- `get_possible_neighbors()` — liste tous les hubs suivants accessibles (voisins + option d'attente)
-- `is_hub_full()` — vérifie si le hub de destination a de la capacité pour le drone
-- `is_route_full()` — vérifie si le lien entre deux hubs a de la capacité
-- `calculate_penalties()` — calcule les pénalités d'attente et de recul
-- `reconstruct_path()` — remonte le chemin complet une fois l'arrivée atteinte
+- `hub_is_full()` — vérifie si le hub de destination a de la capacité pour le drone
+- `link_is_full()` — vérifie si le lien entre deux hubs a de la capacité
+- `rebuild_path()` — remonte le chemin complet une fois l'arrivée atteinte
+
+> Note : la recherche du hub précédent, la récupération des voisins et le calcul des pénalités dynamiques sont gérés directement dans la boucle principale de `compute_a_star()`.
 
 **Waypoints :** Pour chaque connexion `A–B`, un nœud intermédiaire virtuel `wp_A_B` est créé au milieu. Cela permet au solveur de suivre les drones *en transit* sur un lien séparément des drones *à un hub*, permettant des vérifications précises des capacités sur les zones restreintes qui prennent 2 tours à traverser.
 
@@ -134,15 +135,14 @@ A  ──►  wp_A_B  ──►  B
 
 #### Suivi des Capacités
 
-Trois dictionnaires suivent combien de drones occupent chaque emplacement à chaque tour :
+Deux dictionnaires suivent combien de drones occupent chaque emplacement à chaque tour :
 
 ```python
-flight_log[(hub, tour)]            # combien de drones sont à ce hub à ce tour
-link_log[(hub_a, hub_b, tour)]     # combien de drones sont sur ce lien à ce tour
-connection_log[(clé_conn, tour)]   # comptage bidirectionnel (évite le double-comptage)
+hub_usage_log[(hub, tour)]         # combien de drones sont à ce hub à ce tour
+link_usage_log[(link_id, tour)]    # combien de drones sont sur ce lien à ce tour
 ```
 
-Avant d'explorer un déplacement, le solveur appelle `is_hub_full()` et `is_route_full()` pour rejeter tout déplacement qui dépasserait une limite de capacité. Cela garantit qu'**aucun état invalide n'est jamais exploré**.
+Avant d'explorer un déplacement, le solveur appelle `hub_is_full()` et `link_is_full()` pour rejeter tout déplacement qui dépasserait une limite de capacité. Cela garantit qu'**aucun état invalide n'est jamais exploré**.
 
 #### Routage Séquentiel des Drones
 
@@ -431,7 +431,7 @@ make clean
 | **Débogage de l'algorithme**  | Identification des cas limites dans l'espace d'états A* étendu dans le temps  |
 | **Corrections de bugs**       | Divers correctifs dans le solveur et le parseur                               |
 | **Qualité du code**           | Résolution des erreurs `mypy --strict` et `flake8` dans tous les fichiers     |
-| **Refactorisation du code**   | Découpage de `solver.py` en fonctions d'aide clairement nommées               |
+| **Ajustements du code**       | Intégration des pénalités dynamiques directement dans la boucle A*            |
 | **Conception de cartes**      | Génération de cartes de test complexes (labyrinthe extrême, labyrinthe hardcore) |
 | **README**                    | Rédaction et restructuration de ce document                                   |
 
