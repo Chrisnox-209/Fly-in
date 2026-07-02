@@ -1,5 +1,5 @@
 import heapq
-from typing import Optional
+from typing import Optional, Any, Literal
 from parser import Global
 from structure import Node, Connection
 
@@ -382,6 +382,14 @@ class TrafficController:
                     hub_state, (0, max_cap))
                 self.hub_usage_log[hub_state] = (data[0] + 1, data[1])
 
+                if hub == self.end:
+                    for future_turn in range(turn + 1, 2005):
+                        future_state: tuple[str, int] = (hub, future_turn)
+                        future_data: tuple[Literal[0],Any | int] = (
+                            self.hub_usage_log.get(future_state, (0, max_cap)))
+                        self.hub_usage_log[future_state] = (
+                            future_data[0] + 1, future_data[1])
+
             j: int
             src: str
             t_src: int
@@ -424,7 +432,7 @@ class TrafficController:
             self.total_simulation_turns = 0
 
         unique_links: set[tuple[str, str]] = set(self.parent_conn.values())
-        for t in range(self.total_simulation_turns):
+        for t in range(self.total_simulation_turns + 1):
             for hub_name in self.hub_details:
                 if not hub_name.startswith("wp_"):
                     hub_state = (hub_name, t)
