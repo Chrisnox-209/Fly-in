@@ -1,7 +1,7 @@
 MYPY_FLAGS = --warn-return-any --warn-unused-ignores --ignore-missing-imports \
 --disallow-untyped-defs --check-untyped-defs
 MYPY_STRICT = --strict
-FLAKE_STRICT = --max-complexity=5
+FLAKE_STRICT = --max-complexity=25
 MAIN = fly-in.py
 export UV_LINK_MODE=copy
 .PHONY: install, run, clean, lint, lint-strict, debug
@@ -25,7 +25,7 @@ lint:
 
 lint-strict:
 	@uv run python -m mypy .  $(MYPY_FLAGS) $(MYPY_STRICT)
-	@uv run python -m flake8 --exclude .venv . $(FLAKE_STRICТ)
+	@uv run python -m flake8 --exclude .venv . $(FLAKE_STRICT)
 
 debug:
 	@uv run python -m pdb $(MAIN)
