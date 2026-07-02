@@ -1,5 +1,5 @@
 import heapq
-from typing import Optional, Any, Literal
+from typing import Optional
 from parser import Global
 from structure import Node, Connection
 
@@ -385,7 +385,7 @@ class TrafficController:
                 if hub == self.end:
                     for future_turn in range(turn + 1, 2005):
                         future_state: tuple[str, int] = (hub, future_turn)
-                        future_data: tuple[Literal[0],Any | int] = (
+                        future_data: tuple[int, int] = (
                             self.hub_usage_log.get(future_state, (0, max_cap)))
                         self.hub_usage_log[future_state] = (
                             future_data[0] + 1, future_data[1])
